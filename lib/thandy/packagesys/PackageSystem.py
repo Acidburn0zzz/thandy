@@ -51,6 +51,9 @@ def getChecker(relPath, extra, defaultFormat, package):
                 import thandy.packagesys.PackageDB
                 return thandy.packagesys.PackageDB.DBChecker(
                     package['name'], package['version'])
+        elif defaultFormat == 'thp':
+            # TODO: create checker here!
+            pass
         else:
             return None
     elif checkType == 'rpm':
@@ -66,6 +69,10 @@ def getChecker(relPath, extra, defaultFormat, package):
         import thandy.packagesys.ExePackages
         k,v=extra['registry_ent']
         return thandy.packagesys.ExePackages.RegistryChecker(k,v)
+    elif checkType == 'thp':
+        import thandy.packagesys.ThpPackages
+        return thandy.packagesys.ThpPackages.ThpChecker(
+            extra['thp_name'], extra['thp_version'])
     else:
         return None
 
