@@ -70,6 +70,7 @@ def getChecker(relPath, extra, defaultFormat, package):
         k,v=extra['registry_ent']
         return thandy.packagesys.ExePackages.RegistryChecker(k,v)
     elif checkType == 'thp':
+        print "Getting thp checker"
         import thandy.packagesys.ThpPackages
         return thandy.packagesys.ThpPackages.ThpChecker(
             extra['thp_name'], extra['thp_version'])
@@ -108,6 +109,7 @@ def getInstaller(relPath, extra, defaultFormat, package):
         installer = thandy.packagesys.ExePackages.CommandInstaller(
             relPath, extra['cmd_install'], extra.get('cmd_remove'))
     elif installType == 'thp':
+        print "Getting thp installer"
         import thandy.packagesys.ThpPackages
         installer = thandy.packagesys.ThpPackages.ThpInstaller(
             relPath)
