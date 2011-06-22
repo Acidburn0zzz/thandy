@@ -5,6 +5,8 @@ import getopt
 import sys
 import tempfile
 import time
+import shutil
+import zipfile
 
 import thandy.keys
 import thandy.formats
@@ -98,11 +100,12 @@ def makepackage(args):
 def makethppackage(args):
     options, args = getopt.getopt(args, "", "keyid=")
     keyid = None
+    scriptsPath = None
     for o,v in options:
         if o == "--keyid":
             keyid = v
 
-    if len(args) < 2:
+    if len(args) < 3:
         usage()
 
     tmpPath = tempfile.mkdtemp(suffix=str(time.time()),
@@ -112,21 +115,62 @@ def makethppackage(args):
 
     configFile = args[0]
     dataPath = args[1]
-    print "Generating package metadata."
+    thpPath = args[2]
+    if len(args) > 3:
+      scriptsPath = args[3]
+
+    print "Generating package metadata..."
     metadata = thandy.formats.makeThpPackageObj(configFile, dataPath)
 
+    print "Generating directory structure..."
     try:
-      os.mkdir(os.path.join(tmpPath, "meta"));
+        os.mkdir(os.path.join(tmpPath, "meta"));
     except Exception as e:
-      print e
-      thandy.util.deltree(tmpPath)
-      sys.exit(1)
+        print e
+        thandy.util.deltree(tmpPath)
+        sys.exit(1)
 
     thandy.util.replaceFile(os.path.join(tmpPath, "meta", "package.json"),
                             json.dumps(metadata, indent=3))
 
+    shutil.copytree(dataPath, os.path.join(tmpPath, "content"))
+
+    if "scripts" in metadata:
+      try:
+          os.mkdir(os.path.join(tmpPath, "meta", "scripts"))
+      except Exception as e:
+          print e
+          thandy.util.deltree(tmpPath)
+          sys.exit(1)
+      for lang in metadata["scripts"]:
+        for script in metadata['scripts'][lang]:
+          shutil.copyfile(os.path.join(scriptsPath, script[0]),
+                          os.path.join(tmpPath, "meta", "scripts", script[0]))
+
+    thpFileName = "%s-%s.thp" % (metadata['package_name'],
+                                 metadata['package_version'])
+
+    print "Generating thp file in %s" % thpFileName
+    thpFile = zipfile.ZipFile(os.path.join(thpPath, 
+                                           thpFileName), "w")
+
+    for file in metadata['manifest']:
+        thpFile.write(os.path.join(tmpPath, "content", file['name']),
+                      os.path.join("content", file['name']))
+
+    if "scripts" in metadata:
+      for lang in metadata["scripts"]:
+        for script in metadata['scripts'][lang]:
+          thpFile.write(os.path.join(tmpPath, "meta", "scripts", script[0]),
+                        os.path.join("meta", "scripts", script[0]))
+
+    thpFile.write(os.path.join(tmpPath, "meta", "package.json"),
+                  os.path.join("meta", "package.json"))
+
+    thpFile.close()
+
+    print "All done. Cleaning tmp directory..."
     thandy.util.deltree(tmpPath)
-    print metadata
 
 def makebundle(args):
     options, args = getopt.getopt(args, "", "keyid=")
@@ -342,7 +386,7 @@ def usage():
     print "  delrole keyid role path"
     print "  dumpkey [--include-secret] keyid"
     print "  makepackage config datafile"
-    print "  makethppackage config datapath"
+    print "  makethppackage config datapath thpPath scriptsPath"
     print "  makebundle config packagefile ..."
     print "  signkeylist keylist"
     print "  makekeylist keylist"

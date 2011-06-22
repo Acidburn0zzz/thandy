@@ -579,7 +579,8 @@ THP_PACKAGE_SCHEMA = S.Obj(
             platform=S.Opt(S.DictOf(S.AnyStr(), S.AnyStr())),
             require_features=S.Opt(S.ListOf(S.AnyStr())),
             require_packages=S.Opt(S.ListOf(S.ListOf(S.AnyStr()))),
-            scripts=S.Opt(S.DictOf(S.AnyStr(), S.AnyStr())))
+            scripts=S.Opt(S.DictOf(S.AnyStr(), 
+              S.ListOf(S.Struct([S.AnyStr(), S.ListOf(S.AnyStr())])))))
 
 PACKAGE_SCHEMA = S.Func(checkPackageFormatConsistency, PACKAGE_SCHEMA)
 
