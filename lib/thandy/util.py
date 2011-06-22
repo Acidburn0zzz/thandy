@@ -217,3 +217,10 @@ def logCtrl(key, **args):
         "%s=%s"%(k, formatLogString(v)) for k,v in sorted(args.iteritems()))
     _controlLog.log(logging.INFO, " ".join(parts))
 
+def deltree(top):
+    for dirpath, dirnames, filenames in os.walk(top, topdown=False):
+        for f in filenames:
+            os.unlink(os.path.join(dirpath, f))
+        for d in dirnames:
+            os.rmdir(os.path.join(dirpath, d))
+    os.rmdir(top)

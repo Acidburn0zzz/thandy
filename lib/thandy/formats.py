@@ -564,6 +564,23 @@ PACKAGE_SCHEMA = S.Obj(
             shortdesc=S.DictOf(S.AnyStr(), S.AnyStr()),
             longdesc=S.DictOf(S.AnyStr(), S.AnyStr()))
 
+THP_PACKAGE_SCHEMA = S.Obj(
+            format_version=S.Any(),
+            manifest=S.ListOf(S.Obj(name=RELPATH_SCHEMA,
+                                    digest=HASH_SCHEMA,
+                                    is_config=S.Bool())),
+            package_name=S.AnyStr(),
+            package_version=S.AnyStr(),
+            package_version_tuple=VERSION_SCHEMA,
+            timestamp=TIME_SCHEMA,
+            additional_files=S.Opt(S.ListOf(S.AnyStr())),
+            install_order=S.Opt(S.Int()),
+            options=S.Opt(S.DictOf(S.AnyStr(), S.Any())),
+            platform=S.Opt(S.DictOf(S.AnyStr(), S.AnyStr())),
+            require_features=S.Opt(S.ListOf(S.AnyStr())),
+            require_packages=S.Opt(S.ListOf(S.ListOf(S.AnyStr()))),
+            scripts=S.Opt(S.DictOf(S.AnyStr(), S.AnyStr())))
+
 PACKAGE_SCHEMA = S.Func(checkPackageFormatConsistency, PACKAGE_SCHEMA)
 
 ALL_ROLES = ('timestamp', 'mirrors', 'bundle', 'package', 'master')
@@ -784,6 +801,56 @@ def makePackageObj(config_fname, package_fname):
         extra['check_type'] = 'db'
 
     PACKAGE_SCHEMA.checkMatch(result)
+
+    return result
+
+def makeThpPackageObj(config_fname, package_path):
+    """Given a description of a thandy Thp package in config_fname, and the
+       name of the directory where the installable contests are in
+       package_fname, return a new unsigned package object.
+    """
+    preload = {}
+    r = readConfigFile(config_fname,
+                       ['format_version',
+                        'files',
+                        'package_name',
+                        'package_version',
+                        'package_version_tuple',
+                        ], ['additional_files', 
+                            'install_order',
+                            'options',
+                            'platform',
+                            'require_features',
+                            'require_packages',
+                            'scripts'
+                            ], preload)
+
+    file_list = []
+    for (file, is_config) in r["files"]:
+        f = open(os.path.join(package_path, file), 'rb')
+        digest = getFileDigest(f)
+        f.close()
+
+        file_list.append({'name' : file,
+                          'digest' : formatHash(digest),
+                          'is_config' : is_config})
+
+    result = { 'format_version' : r['format_version'],
+               'manifest' : file_list,
+               'package_name' : r['package_name'],
+               'package_version' : r['package_version'],
+               'package_version_tuple' : r['package_version_tuple'],
+               'timestamp' : formatTime(time.time()),
+               'additional_files' : r['additional_files'],
+               'install_order' : r['install_order'],
+               'options' : r['options'],
+               'platform' : r['platform'],
+               'require_features' : r['require_features'],
+               'require_packages' : r['require_packages'],
+               'scripts' : r['scripts']
+             }
+
+    THP_PACKAGE_SCHEMA.checkMatch(result)
 
     return result
 
