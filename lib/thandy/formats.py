@@ -782,6 +782,7 @@ def makePackageObj(config_fname, package_fname):
             extra['cmd_install'] = [ "${FILE}" ] + r['exe_args']
     elif format == 'thp':
         extra['check_type'] = 'thp'
+        extra['install_type'] = 'thp'
         extra['thp_name'] = r['name']
         extra['thp_version'] = r['version']
 

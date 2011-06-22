@@ -107,6 +107,10 @@ def getInstaller(relPath, extra, defaultFormat, package):
         import thandy.packagesys.ExePackages
         installer = thandy.packagesys.ExePackages.CommandInstaller(
             relPath, extra['cmd_install'], extra.get('cmd_remove'))
+    elif installType == 'thp':
+        import thandy.packagesys.ThpPackages
+        installer = thandy.packagesys.ThpPackages.ThpInstaller(
+            relPath)
     else:
         return None
 
