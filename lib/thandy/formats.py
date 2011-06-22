@@ -811,20 +811,21 @@ def makeThpPackageObj(config_fname, package_path):
        package_fname, return a new unsigned package object.
     """
     preload = {}
+    optKeys = ['additional_files', 
+               'install_order',
+               'options',
+               'platform',
+               'require_features',
+               'require_packages',
+               'scripts'
+              ]
     r = readConfigFile(config_fname,
                        ['format_version',
                         'files',
                         'package_name',
                         'package_version',
                         'package_version_tuple',
-                        ], ['additional_files', 
-                            'install_order',
-                            'options',
-                            'platform',
-                            'require_features',
-                            'require_packages',
-                            'scripts'
-                            ], preload)
+                        ], optKeys, preload)
 
     file_list = []
     for (file, is_config) in r["files"]:
@@ -841,15 +842,12 @@ def makeThpPackageObj(config_fname, package_path):
                'package_name' : r['package_name'],
                'package_version' : r['package_version'],
                'package_version_tuple' : r['package_version_tuple'],
-               'timestamp' : formatTime(time.time()),
-               'additional_files' : r['additional_files'],
-               'install_order' : r['install_order'],
-               'options' : r['options'],
-               'platform' : r['platform'],
-               'require_features' : r['require_features'],
-               'require_packages' : r['require_packages'],
-               'scripts' : r['scripts']
+               'timestamp' : formatTime(time.time())
              }
+
+    for optKey in optKeys:
+      if optKey in r:
+        result[optKey] = r[optKey]
 
     THP_PACKAGE_SCHEMA.checkMatch(result)
 
