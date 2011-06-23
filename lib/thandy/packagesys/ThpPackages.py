@@ -6,7 +6,10 @@ import zipfile
 import tempfile
 import time
 
+from lockfile import LockFile
+
 import thandy.util
+import thandy.formats
 import thandy.packagesys.PackageSystem as PS
 import thandy.packagesys.PackageDB as PDB
 
@@ -90,12 +93,21 @@ class ThpInstaller(PS.Installer):
         if self._thp_root is None:
           raise Exception("There is no THP_INSTALL_ROOT variable set")
 
-        pkg = ThpPackage(os.path.join(self._cacheRoot, self._relPath[1:]))
-        self._db.insert(pkg.getAll())
+        lockfile = os.path.join(self._thp_db_root, ".lock")
+        lock = LockFile(lockfile)
+        try:
+            lock.acquire()
+            pkg = ThpPackage(os.path.join(self._cacheRoot, self._relPath[1:]))
+            shutil.copytree()
+        except AlreadyLocked:
+            print "You can't run more than one instance of Thandy"
+        except LockFailed:
+            print "Can't acquire lock on %s" % lockfile
+#        self._db.insert(pkg.getAll())
+#        self._db.statusInstalled(pkg.getAll())
 #        self._db.delete(pkg.getAll())
-        print self._db.exists(pkg.get("package_name"))
+#        print self._db.exists(pkg.get("package_name"))
 
-#        shutil.copytree()
 
     def remove(self):
         print "Running thp remover"
@@ -104,6 +116,7 @@ class ThpPackage(object):
     def __init__(self, thp_path):
         self._thp_path = thp_path
         self._metadata = None
+        self._valid = False
 
         self._process()
 
@@ -118,6 +131,7 @@ class ThpPackage(object):
         thpFile.extractall(tmpPath)
         contents = open(os.path.join(tmpPath, "meta", "package.json")).read()
         self._metadata = json.loads(contents)
+        print self._validateFiles(tmpPath)
 
         thandy.util.deltree(tmpPath)
 
@@ -127,3 +141,17 @@ class ThpPackage(object):
 
     def getAll(self):
         return self._metadata
+
+    def isValid(self):
+        return self._valid
+
+    def _validateFiles(self, tmpPath):
+        for manifest in self._metadata['manifest']:
+            name = manifest['name']
+            digest = manifest['digest']
+            is_config = manifest['is_config']
+            f = open(os.path.join(tmpPath, "content", name), "rb")
+            newdigest = thandy.formats.formatHash(thandy.formats.getFileDigest(f))
+            f.close()
+            if newdigest != digest:
+                return (False, [name, digest, newdigest])
