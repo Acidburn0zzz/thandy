@@ -299,12 +299,13 @@ class LocalRepository:
 
     def getFilesToUpdate(self, now=None, trackingBundles=(), hashDict=None,
                          lengthDict=None, usePackageSystem=True,
-                         installableDict=None, btMetadataDict=None):
+                         installableDict=None, btMetadataDict=None,
+                         thpTransactionDict=None):
         """Return a set of relative paths for all files that we need
            to fetch, and True if we're fetching actual files to install
            instead of metadata.  Assumes that we care about the bundles
            'trackingBundles'.
-           DOCDOC installableDict, hashDict, usePackageSystem
+           DOCDOC installableDict, hashDict, usePackageSystem, thpTransaction
         """
 
         if now == None:
@@ -322,6 +323,9 @@ class LocalRepository:
 
         if btMetadataDict == None:
             btMetadataDict = {}
+
+        if thpTransactionDict == None:
+            thpTransactionDict = {}
 
         pkgItems = None
 
@@ -452,6 +456,7 @@ class LocalRepository:
 
         # Okay.  So we have some bundles.  See if we have their packages.
         packages = {}
+        thpbundle = False
         for bfile in bundles.values():
             bundle = bfile.get()
             for pkginfo in bundle['packages']:
@@ -480,7 +485,19 @@ class LocalRepository:
                                  "did not match")
                     # Can't use it.
                     continue
+
+                # We assume that if there is one thp package then all the rest
+                # are thp too. But we continue with the loop to check every
+                # package digest and signature
+                if thpBunle or pfile.get("format") == "thp":
+                    thpBundle = True
+                    continue
+
                 packages[rp] = pfile
+
+            if thpBundle:
+                thpTransactionDict[bundle['name']] = [bundle['packages']]
+            thpBundle = False
 
         # We have the packages. If we're downloading via bittorrent, we need
         # the .torrent metafiles, as well.
@@ -560,6 +577,7 @@ class LocalRepository:
                     # if that works, we can get rid of the second return
                     # value and just use installableDict from the caller.
                     if pkgItems.has_key(rp):
+                        if pkgItems[rp]:
                         installableDict.setdefault(pkg_rp, {})[rp] = pkgItems[rp]
 
 

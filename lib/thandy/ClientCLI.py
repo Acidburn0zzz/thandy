@@ -120,6 +120,7 @@ def update(args):
         lengths = {}
         installable = {}
         btMetadata = {}
+        thpTransactions = {}
         logging.info("Checking for files to update.")
         files, downloadingFiles = repo.getFilesToUpdate(
               trackingBundles=args,
@@ -127,13 +128,14 @@ def update(args):
               lengthDict=lengths,
               usePackageSystem=use_packagesys,
               installableDict=installable,
-              btMetadataDict=btMetadata)
+              btMetadataDict=btMetadata
+              thpTransactionDict=thpTransactions)
 
         if forceCheck:
             files.add("/meta/timestamp.txt")
             forceCheck = False
 
-        if installable and not files:
+        if (thpTransactions or installable) and not files:
             for p, d in installable.items():
                 for n, i in d.items():
                     if i.canInstall():
@@ -151,6 +153,12 @@ def update(args):
                         i = h.getInstaller()
                         if i != None:
                             i.install()
+
+            print "Bundles with all THP packages:"
+            for bundle in thpTransactions:
+              # TODO: ThpTransaction goes here!
+              print bundle
+
             return
 
         elif not files:
