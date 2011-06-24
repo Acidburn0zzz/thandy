@@ -21,6 +21,9 @@ class ThpDB(object):
         if self._thp_db_root is None:
           raise Exception("There is no THP_DB_ROOT variable set")
 
+    def dbPath(self):
+        return self._thp_db_root
+
     def insert(self, pkg):
         thandy.util.replaceFile(os.path.join(self._thp_db_root, "pkg-status",
                                              pkg['package_name'])+".json",
@@ -79,10 +82,47 @@ class ThpChecker(PS.Checker):
     def isInstalled(self):
         return self._version in self.getInstalledVersions()
 
-class ThpInstaller(PS.Installer):
-    def __init__(self, relPath):
-        PS.Installer.__init__(self, relPath)
+class ThpTransaction(object):
+    def __init__(self, packages):
+        self._raw_packages = packages
+        self._installers = []
         self._db = ThpDB()
+
+        self._process()
+
+    def _process(self):
+        for package in self._raw_packages:
+            self._installers.append(ThpInstaller(package['path']))
+
+    def _orderByDep(self):
+        """ Orders packages with a topological order by its dependencies """
+        pass
+
+    def install(self):
+        lockfile = os.path.join(self._db.getPath(), ".lock")
+        lock = LockFile(lockfile)
+        try:
+            lock.acquire()
+            order = self._orderByDep(self)
+            for pkg in order:
+                pkg.install()
+        except AlreadyLocked:
+            print "You can't run more than one instance of Thandy"
+        except LockFailed:
+            print "Can't acquire lock on %s" % lockfile
+
+        lock.release()
+
+    def remote(self):
+        raise NotImplemented()
+
+class ThpInstaller(PS.Installer):
+    def __init__(self, relPath, db = None):
+        PS.Installer.__init__(self, relPath)
+        self._db = db
+        if db is None:
+            self._db = ThpDB()
+        self._pkg = ThpPackage(os.path.join(self._cacheRoot, self._relPath[1:]))
 
     def __repr__(self):
         return "ThpInstaller(%r)" %(self._relPath)
@@ -91,26 +131,20 @@ class ThpInstaller(PS.Installer):
         print "Running thp installer", self._cacheRoot, self._relPath
         self._thp_root = os.environ.get("THP_INSTALL_ROOT")
         if self._thp_root is None:
-          raise Exception("There is no THP_INSTALL_ROOT variable set")
+            raise Exception("There is no THP_INSTALL_ROOT variable set")
 
-        lockfile = os.path.join(self._thp_db_root, ".lock")
-        lock = LockFile(lockfile)
-        try:
-            lock.acquire()
-            pkg = ThpPackage(os.path.join(self._cacheRoot, self._relPath[1:]))
-            shutil.copytree()
-        except AlreadyLocked:
-            print "You can't run more than one instance of Thandy"
-        except LockFailed:
-            print "Can't acquire lock on %s" % lockfile
+#        shutil.copytree()
+
 #        self._db.insert(pkg.getAll())
 #        self._db.statusInstalled(pkg.getAll())
 #        self._db.delete(pkg.getAll())
-#        print self._db.exists(pkg.get("package_name"))
 
 
     def remove(self):
         print "Running thp remover"
+
+    def getDeps(self):
+        return self._pkg.getDeps()
 
 class ThpPackage(object):
     def __init__(self, thp_path):
@@ -125,7 +159,7 @@ class ThpPackage(object):
 
     def _process(self):
         tmpPath = tempfile.mkdtemp(suffix=str(time.time()),
-                                  prefix="thp")
+                                   prefix="thp")
 
         thpFile = zipfile.ZipFile(self._thp_path)
         thpFile.extractall(tmpPath)
@@ -137,10 +171,14 @@ class ThpPackage(object):
 
     def get(self, key):
         if self._metadata:
-          return self._metadata.get(key)
+            return self._metadata.get(key)
 
     def getAll(self):
         return self._metadata
+
+    def getDeps(self):
+        if 'require_packages' in self._metadata.keys():
+            return self._metadata['require_packages']
 
     def isValid(self):
         return self._valid

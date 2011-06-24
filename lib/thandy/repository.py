@@ -496,7 +496,7 @@ class LocalRepository:
                 packages[rp] = pfile
 
             if thpBundle:
-                thpTransactionDict[bundle['name']] = [bundle['packages']]
+                thpTransactionDict[bundle['name']] = bundle['packages']
             thpBundle = False
 
         # We have the packages. If we're downloading via bittorrent, we need
