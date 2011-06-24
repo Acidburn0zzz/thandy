@@ -456,7 +456,7 @@ class LocalRepository:
 
         # Okay.  So we have some bundles.  See if we have their packages.
         packages = {}
-        thpbundle = False
+        thpBundle = False
         for bfile in bundles.values():
             bundle = bfile.get()
             for pkginfo in bundle['packages']:
@@ -489,7 +489,7 @@ class LocalRepository:
                 # We assume that if there is one thp package then all the rest
                 # are thp too. But we continue with the loop to check every
                 # package digest and signature
-                if thpBunle or pfile.get("format") == "thp":
+                if thpBundle or pfile.get()["format"] == "thp":
                     thpBundle = True
                     continue
 
@@ -578,7 +578,7 @@ class LocalRepository:
                     # value and just use installableDict from the caller.
                     if pkgItems.has_key(rp):
                         if pkgItems[rp]:
-                        installableDict.setdefault(pkg_rp, {})[rp] = pkgItems[rp]
+                          installableDict.setdefault(pkg_rp, {})[rp] = pkgItems[rp]
 
 
         # Okay; these are the files we need.

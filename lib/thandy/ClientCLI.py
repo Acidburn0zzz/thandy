@@ -128,7 +128,7 @@ def update(args):
               lengthDict=lengths,
               usePackageSystem=use_packagesys,
               installableDict=installable,
-              btMetadataDict=btMetadata
+              btMetadataDict=btMetadata,
               thpTransactionDict=thpTransactions)
 
         if forceCheck:
@@ -157,7 +157,7 @@ def update(args):
             print "Bundles with all THP packages:"
             for bundle in thpTransactions:
               # TODO: ThpTransaction goes here!
-              print bundle
+              print thpTransactions[bundle]
 
             return
 
