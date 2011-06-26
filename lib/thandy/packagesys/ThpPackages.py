@@ -6,6 +6,8 @@ import zipfile
 import tempfile
 import time
 import shutil
+import subprocess
+import sys
 
 from lockfile import LockFile, AlreadyLocked, LockFailed
 
@@ -127,7 +129,14 @@ class ThpTransaction(object):
             print "Lock acquired"
             order = self._orderByDep()
             for pkg in order:
+                if pkg.run('checkinst') != 0:
+                    print "Check inst failed for %s" % pkg
+                    sys.exit(1)
+            for pkg in order:
                 print "Starting installation using", pkg
+                if pkg.run('preinst') != 0:
+                    print "Preinst script for %s failed" % pkg
+                    sys.exit(1)
                 pkg.install()
         except AlreadyLocked:
             print "You can't run more than one instance of Thandy"
@@ -201,12 +210,16 @@ class ThpInstaller(PS.Installer):
     def getDeps(self):
         return self._pkg.getDeps()
 
+    def run(self, key):
+        return self._pkg.run(key)
+
 class ThpPackage(object):
     def __init__(self, thp_path):
         self._thp_path = thp_path
         self._metadata = None
         self._valid = False
         self._tmp_path = ""
+        self._scripts = {}
 
         self._process()
 
@@ -222,6 +235,7 @@ class ThpPackage(object):
 
         thpFile = zipfile.ZipFile(self._thp_path)
         thpFile.extractall(self._tmp_path)
+        json_file = os.path.join(self._tmp_path, "meta", "package.json")
         contents = open(os.path.join(self._tmp_path, "meta", "package.json")).read()
         self._metadata = json.loads(contents)
         (allOk, where) = self._validateFiles(self._tmp_path)
@@ -229,6 +243,29 @@ class ThpPackage(object):
         if not allOk:
             print "These files have different digests:"
             print where
+            sys.exit(1)
+
+        if "scripts" in self._metadata:
+            if "python2" in self._metadata['scripts']:
+                for script in self._metadata['scripts']['python2']:
+                    env = {}
+                    env['THP_PACKAGE_NAME'] = self._metadata['package_name']
+                    env['THP_OLD_VERSION'] = ""
+                    env['THP_NEW_VERSION'] = self._metadata['package_version']
+                    env['THP_OLD_INSTALL_ROOT'] = ""
+                    env['THP_INSTALL_ROOT'] = os.getenv("THP_INSTALL_ROOT")
+                    env['THP_JSON_FILE'] = json_file
+                    env['THP_VERBOSE'] = 1
+                    env['THP_PURGE'] = 0
+                    env['THP_TEMP_DIR'] = self._tmp_path
+
+                    sw = ScriptWrapper(os.path.join(self._tmp_path, "meta", 
+                                       "scripts", script[0]), env)
+
+                    for type in script[1]:
+                        self._scripts[type] = sw
+            else:
+                sys.exit(1)
 
     def get(self, key):
         if self._metadata:
@@ -258,3 +295,18 @@ class ThpPackage(object):
             if newdigest != digest:
                 return (False, [name, digest, newdigest])
         return (True, None)
+
+    def run(self, key):
+        if key in self._scripts.keys():
+            return self._scripts[key].run()
+        return 0
+
+class ScriptWrapper(object):
+    def __init__(self, path = None, env = None):
+        self._path = path
+        self._env = None
+
+    def run(self):
+        self._process = subprocess.Popen(["python", self._path], 
+                                         env=self._env)
+        return self._process.returncode
