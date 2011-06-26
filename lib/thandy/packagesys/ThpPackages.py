@@ -18,6 +18,7 @@ json = thandy.util.importJSON()
 
 class ThpDB(object):
     def __init__(self):
+        self._upgrade = False
         self._thp_db_root = os.environ.get("THP_DB_ROOT")
         if self._thp_db_root is None:
           raise Exception("There is no THP_DB_ROOT variable set")
@@ -25,9 +26,24 @@ class ThpDB(object):
     def getPath(self):
         return self._thp_db_root
 
+    def startUpgrade(self):
+        self._upgrade = True
+
+    def finishUpgrade(self, name):
+        fname = os.path.join(self._thp_db_root, "pkg-status", name+".json")
+        shutil.move(fname+".new", fname)
+        self._upgrade = False
+
+    def isUpgrading(self):
+        return self._upgrade
+
     def insert(self, pkg):
-        thandy.util.replaceFile(os.path.join(self._thp_db_root, "pkg-status",
-                                             pkg['package_name'])+".json",
+        fname = os.path.join(self._thp_db_root, "pkg-status",
+                             pkg['package_name']+".json")
+        if self._upgrade:
+            fname += ".new"
+
+        thandy.util.replaceFile(fname,
                                 json.dumps(pkg))
 
     def delete(self, pkg):
@@ -144,6 +160,10 @@ class ThpInstaller(PS.Installer):
         destPath = os.path.join(self._thp_root, self._pkg.get("package_name"))
         print "Destination directory:", destPath
 
+        if self._db.exists(self._pkg.get("package_name")):
+            print "%s is already installed, switching to upgrade mode." % self._pkg.get("package_name")
+            self._db.startUpgrade()
+
         pkg_metadata = self._pkg.getAll()
         self._db.insert(pkg_metadata)
         self._db.statusInProgress(pkg_metadata)
@@ -158,9 +178,20 @@ class ThpInstaller(PS.Installer):
             if file['is_config']:
                 print "Ignoring file:", file
             else:
-                print "Processing file:", file
-                shutil.copyfile(os.path.join(self._pkg.getTmpPath(), "content", file['name']),
-                                os.path.join(destPath, file['name']));
+              print "Processing file:", file
+              try:
+                  # Create all the needed dirs
+                  os.makedirs(os.sep.join((os.path.join(destPath, file['name'])
+                    .split(os.path.sep)[:-1])))
+              except:
+                  # Ignore if it already exists
+                  pass
+              shutil.copy(os.path.join(self._pkg.getTmpPath(), "content", file['name']),
+                              os.path.join(destPath, file['name']));
+
+        if self._db.isUpgrading():
+            print "Finishing upgrade."
+            self._db.finishUpgrade(self._pkg.get('package_name'))
 
         self._db.statusInstalled(pkg_metadata)
 
@@ -193,7 +224,11 @@ class ThpPackage(object):
         thpFile.extractall(self._tmp_path)
         contents = open(os.path.join(self._tmp_path, "meta", "package.json")).read()
         self._metadata = json.loads(contents)
-        print self._validateFiles(self._tmp_path)
+        (allOk, where) = self._validateFiles(self._tmp_path)
+
+        if not allOk:
+            print "These files have different digests:"
+            print where
 
     def get(self, key):
         if self._metadata:
@@ -222,3 +257,4 @@ class ThpPackage(object):
             f.close()
             if newdigest != digest:
                 return (False, [name, digest, newdigest])
+        return (True, None)

@@ -155,9 +155,7 @@ def update(args):
                         if i != None:
                             i.install()
 
-            print "Bundles with all THP packages:"
             for bundle in thpTransactions:
-              # TODO: ThpTransaction goes here!
               thandy.packagesys.ThpPackages.ThpTransaction(thpTransactions[bundle], 
                                                           repoRoot).install()
 
