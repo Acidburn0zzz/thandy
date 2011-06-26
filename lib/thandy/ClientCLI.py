@@ -15,6 +15,7 @@ import thandy.repository
 import thandy.download
 import thandy.master_keys
 import thandy.packagesys.PackageSystem
+import thandy.packagesys.ThpPackages
 import thandy.socksurls
 import thandy.encodeToXML
 
@@ -157,7 +158,8 @@ def update(args):
             print "Bundles with all THP packages:"
             for bundle in thpTransactions:
               # TODO: ThpTransaction goes here!
-              print thpTransactions[bundle]
+              thandy.packagesys.ThpPackages.ThpTransaction(thpTransactions[bundle], 
+                                                          repoRoot).install()
 
             return
 

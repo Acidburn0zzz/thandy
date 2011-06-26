@@ -456,7 +456,6 @@ class LocalRepository:
 
         # Okay.  So we have some bundles.  See if we have their packages.
         packages = {}
-        thpBundle = False
         for bfile in bundles.values():
             bundle = bfile.get()
             for pkginfo in bundle['packages']:
@@ -489,15 +488,13 @@ class LocalRepository:
                 # We assume that if there is one thp package then all the rest
                 # are thp too. But we continue with the loop to check every
                 # package digest and signature
-                if thpBundle or pfile.get()["format"] == "thp":
-                    thpBundle = True
+                pfile_data = pfile.get()
+                if pfile_data["format"] == "thp":
+                    thpTransactionDict[bundle['name']] = {}
+                    thpTransactionDict[bundle['name']][pfile_data['name']] = pfile_data
                     continue
 
                 packages[rp] = pfile
-
-            if thpBundle:
-                thpTransactionDict[bundle['name']] = bundle['packages']
-            thpBundle = False
 
         # We have the packages. If we're downloading via bittorrent, we need
         # the .torrent metafiles, as well.

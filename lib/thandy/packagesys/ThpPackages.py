@@ -5,8 +5,9 @@ import os
 import zipfile
 import tempfile
 import time
+import shutil
 
-from lockfile import LockFile
+from lockfile import LockFile, AlreadyLocked, LockFailed
 
 import thandy.util
 import thandy.formats
@@ -21,7 +22,7 @@ class ThpDB(object):
         if self._thp_db_root is None:
           raise Exception("There is no THP_DB_ROOT variable set")
 
-    def dbPath(self):
+    def getPath(self):
         return self._thp_db_root
 
     def insert(self, pkg):
@@ -83,43 +84,50 @@ class ThpChecker(PS.Checker):
         return self._version in self.getInstalledVersions()
 
 class ThpTransaction(object):
-    def __init__(self, packages):
+    def __init__(self, packages, repoRoot):
         self._raw_packages = packages
+        self._repo_root = repoRoot
         self._installers = []
         self._db = ThpDB()
 
         self._process()
 
     def _process(self):
-        for package in self._raw_packages:
-            self._installers.append(ThpInstaller(package['path']))
+        for package in self._raw_packages.keys():
+            self._installers.append(ThpInstaller(self._raw_packages[package]['files'][0][0],
+                                    self._db,
+                                    self._repo_root))
 
     def _orderByDep(self):
         """ Orders packages with a topological order by its dependencies """
-        pass
+        return self._installers
 
     def install(self):
-        lockfile = os.path.join(self._db.getPath(), ".lock")
+        lockfile = os.path.join(self._db.getPath(), "db")
         lock = LockFile(lockfile)
         try:
+            print "Acquiring lock..."
             lock.acquire()
-            order = self._orderByDep(self)
+            print "Lock acquired"
+            order = self._orderByDep()
             for pkg in order:
+                print "Starting installation using", pkg
                 pkg.install()
         except AlreadyLocked:
             print "You can't run more than one instance of Thandy"
         except LockFailed:
             print "Can't acquire lock on %s" % lockfile
-
-        lock.release()
+        finally:
+            lock.release()
 
     def remote(self):
         raise NotImplemented()
 
 class ThpInstaller(PS.Installer):
-    def __init__(self, relPath, db = None):
+    def __init__(self, relPath, db = None, repoRoot = None):
         PS.Installer.__init__(self, relPath)
         self._db = db
+        self.setCacheRoot(repoRoot)
         if db is None:
             self._db = ThpDB()
         self._pkg = ThpPackage(os.path.join(self._cacheRoot, self._relPath[1:]))
@@ -133,12 +141,28 @@ class ThpInstaller(PS.Installer):
         if self._thp_root is None:
             raise Exception("There is no THP_INSTALL_ROOT variable set")
 
-#        shutil.copytree()
+        destPath = os.path.join(self._thp_root, self._pkg.get("package_name"))
+        print "Destination directory:", destPath
 
-#        self._db.insert(pkg.getAll())
-#        self._db.statusInstalled(pkg.getAll())
-#        self._db.delete(pkg.getAll())
+        pkg_metadata = self._pkg.getAll()
+        self._db.insert(pkg_metadata)
+        self._db.statusInProgress(pkg_metadata)
 
+        dir = os.path.join(self._thp_root, self._pkg.get("package_name"))
+        try:
+            os.mkdir(dir)
+        except:
+            print "%s: Already exists, using it." % dir
+
+        for file in self._pkg.get('manifest'):
+            if file['is_config']:
+                print "Ignoring file:", file
+            else:
+                print "Processing file:", file
+                shutil.copyfile(os.path.join(self._pkg.getTmpPath(), "content", file['name']),
+                                os.path.join(destPath, file['name']));
+
+        self._db.statusInstalled(pkg_metadata)
 
     def remove(self):
         print "Running thp remover"
@@ -151,23 +175,25 @@ class ThpPackage(object):
         self._thp_path = thp_path
         self._metadata = None
         self._valid = False
+        self._tmp_path = ""
 
         self._process()
+
+    def __del__(self):
+        thandy.util.deltree(self._tmp_path)
 
     def __repr__(self):
         print "ThpPackage(%s)" % self._thp_path
 
     def _process(self):
-        tmpPath = tempfile.mkdtemp(suffix=str(time.time()),
+        self._tmp_path = tempfile.mkdtemp(suffix=str(time.time()),
                                    prefix="thp")
 
         thpFile = zipfile.ZipFile(self._thp_path)
-        thpFile.extractall(tmpPath)
-        contents = open(os.path.join(tmpPath, "meta", "package.json")).read()
+        thpFile.extractall(self._tmp_path)
+        contents = open(os.path.join(self._tmp_path, "meta", "package.json")).read()
         self._metadata = json.loads(contents)
-        print self._validateFiles(tmpPath)
-
-        thandy.util.deltree(tmpPath)
+        print self._validateFiles(self._tmp_path)
 
     def get(self, key):
         if self._metadata:
@@ -182,6 +208,9 @@ class ThpPackage(object):
 
     def isValid(self):
         return self._valid
+
+    def getTmpPath(self):
+        return self._tmp_path
 
     def _validateFiles(self, tmpPath):
         for manifest in self._metadata['manifest']:
