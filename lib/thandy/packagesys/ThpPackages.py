@@ -138,6 +138,8 @@ class ThpTransaction(object):
                     print "Preinst script for %s failed" % pkg
                     sys.exit(1)
                 pkg.install()
+                if pkg.run('postinst') != 0:
+                    print "WARN: postinst script failed"
         except AlreadyLocked:
             print "You can't run more than one instance of Thandy"
         except LockFailed:
@@ -309,4 +311,5 @@ class ScriptWrapper(object):
     def run(self):
         self._process = subprocess.Popen(["python", self._path], 
                                          env=self._env)
+        self._process.wait()
         return self._process.returncode
