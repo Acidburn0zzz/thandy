@@ -168,6 +168,8 @@ class LockBase:
             # Thread objects in Python 2.4 and earlier do not have ident
             # attrs.  Worm around that.
             ident = getattr(t, "ident", hash(t))
+            if ident is None:
+              ident = hash(t)
             self.tname = "-%x" % (ident & 0xffffffff)
         else:
             self.tname = ""
