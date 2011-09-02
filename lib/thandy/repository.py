@@ -493,9 +493,9 @@ class LocalRepository:
                 packages[rp] = pfile
 
                 if pfile_data["format"] == "thp":
-                    thpTransactionDict[bundle['name']] = {}
+                    if not bundle['name'] in thpTransactionDict.keys():
+                        thpTransactionDict[bundle['name']] = {}
                     thpTransactionDict[bundle['name']][pfile_data['name']] = pfile_data
-                    continue
 
         # We have the packages. If we're downloading via bittorrent, we need
         # the .torrent metafiles, as well.

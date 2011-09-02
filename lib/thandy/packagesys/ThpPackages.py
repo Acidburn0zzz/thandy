@@ -26,7 +26,7 @@ class ThpDB(object):
           raise Exception("There is no THP_DB_ROOT variable set")
         dbpath = os.path.join(self._thp_db_root, "pkg-status")
         if not os.path.exists(dbpath):
-            os.mkdir(dbpat)
+            os.mkdir(dbpath)
 
     def getPath(self):
         return self._thp_db_root
