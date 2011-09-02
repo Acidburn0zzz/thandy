@@ -156,8 +156,9 @@ def update(args):
                             i.install()
 
             for bundle in thpTransactions:
-              thandy.packagesys.ThpPackages.ThpTransaction(thpTransactions[bundle], 
-                                                          repoRoot).install()
+                if install:
+                    thandy.packagesys.ThpPackages.ThpTransaction(thpTransactions[bundle], 
+                                                                 repoRoot).install()
 
             return
 
