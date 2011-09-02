@@ -489,12 +489,13 @@ class LocalRepository:
                 # are thp too. But we continue with the loop to check every
                 # package digest and signature
                 pfile_data = pfile.get()
+
+                packages[rp] = pfile
+
                 if pfile_data["format"] == "thp":
                     thpTransactionDict[bundle['name']] = {}
                     thpTransactionDict[bundle['name']][pfile_data['name']] = pfile_data
                     continue
-
-                packages[rp] = pfile
 
         # We have the packages. If we're downloading via bittorrent, we need
         # the .torrent metafiles, as well.
@@ -524,7 +525,7 @@ class LocalRepository:
         # files?
         for pfile in packages.values():
             package = pfile.get()
-
+            
             alreadyInstalled = set()
             pkgItems = {}
 

@@ -124,22 +124,22 @@ class ThpTransaction(object):
         lockfile = os.path.join(self._db.getPath(), "db")
         lock = LockFile(lockfile)
         try:
-            print "Acquiring lock..."
+            logging.info("Acquiring lock...")
             lock.acquire()
-            print "Lock acquired"
+            logging.info("Lock acquired")
             order = self._orderByDep()
             for pkg in order:
                 if pkg.run('checkinst') != 0:
-                    print "Check inst failed for %s" % pkg
+                    logging.info("Check inst failed for %s" % pkg)
                     sys.exit(1)
             for pkg in order:
-                print "Starting installation using", pkg
+                logging.info("Starting installation using %s" % pkg)
                 if pkg.run('preinst') != 0:
-                    print "Preinst script for %s failed" % pkg
+                    logging.info("Preinst script for %s failed" % pkg)
                     sys.exit(1)
                 pkg.install()
                 if pkg.run('postinst') != 0:
-                    print "WARN: postinst script failed"
+                    logging.info("postinst script failed")
         except AlreadyLocked:
             print "You can't run more than one instance of Thandy"
         except LockFailed:
@@ -163,16 +163,16 @@ class ThpInstaller(PS.Installer):
         return "ThpInstaller(%r)" %(self._relPath)
 
     def install(self):
-        print "Running thp installer", self._cacheRoot, self._relPath
+        logging.info("Running thp installer %s %s" % (self._cacheRoot, self._relPath))
         self._thp_root = os.environ.get("THP_INSTALL_ROOT")
         if self._thp_root is None:
             raise Exception("There is no THP_INSTALL_ROOT variable set")
 
         destPath = os.path.join(self._thp_root, self._pkg.get("package_name"))
-        print "Destination directory:", destPath
+        logging.info("Destination directory: %s" % destPath)
 
         if self._db.exists(self._pkg.get("package_name")):
-            print "%s is already installed, switching to upgrade mode." % self._pkg.get("package_name")
+            logging.info("%s is already installed, switching to upgrade mode." % self._pkg.get("package_name"))
             self._db.startUpgrade()
 
         pkg_metadata = self._pkg.getAll()
@@ -183,13 +183,13 @@ class ThpInstaller(PS.Installer):
         try:
             os.mkdir(dir)
         except:
-            print "%s: Already exists, using it." % dir
+            logging.info("%s: Already exists, using it." % dir)
 
         for file in self._pkg.get('manifest'):
             if file['is_config']:
-                print "Ignoring file:", file
+                logging.info("Ignoring file: %s" % file)
             else:
-              print "Processing file:", file
+              logging.info("Processing file: %s" % file)
               try:
                   # Create all the needed dirs
                   os.makedirs(os.sep.join((os.path.join(destPath, file['name'])
@@ -201,7 +201,7 @@ class ThpInstaller(PS.Installer):
                               os.path.join(destPath, file['name']));
 
         if self._db.isUpgrading():
-            print "Finishing upgrade."
+            logging.info("Finishing upgrade.")
             self._db.finishUpgrade(self._pkg.get('package_name'))
 
         self._db.statusInstalled(pkg_metadata)
@@ -243,8 +243,8 @@ class ThpPackage(object):
         (allOk, where) = self._validateFiles(self._tmp_path)
 
         if not allOk:
-            print "These files have different digests:"
-            print where
+            logging.info("These files have different digests:")
+            logging.info(where)
             sys.exit(1)
 
         if "scripts" in self._metadata:
