@@ -134,6 +134,9 @@ class ThpTransaction(object):
                                                      self._db,
                                                      self._repo_root))
 
+    def isReady(self):
+        return (len(self._installers) > 0)
+
     def _orderByDep(self):
         """ Orders packages with a topological order by its dependencies """
         return self._installers

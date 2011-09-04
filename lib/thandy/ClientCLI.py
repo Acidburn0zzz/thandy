@@ -157,13 +157,14 @@ def update(args):
             #             if i != None:
             #                 i.install()
             
-            logCtrl("READY", BUNDLE=",".join(thpTransactions.keys()))
-
             for bundle in thpTransactions:
+                tr = thandy.packagesys.ThpPackages.ThpTransaction(thpTransactions[bundle], 
+                                                                  alreadyInstalled,
+                                                                  repoRoot)
+                if tr.isReady():
+                    logCtrl("READY", BUNDLE=bundle)
                 if install:
-                    thandy.packagesys.ThpPackages.ThpTransaction(thpTransactions[bundle], 
-                                                                 alreadyInstalled,
-                                                                 repoRoot).install()
+                    tr.install()
 
             return
 
