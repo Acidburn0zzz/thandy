@@ -185,6 +185,7 @@ def update(args):
                 delay = int(waitTill - now) + 1
                 logging.info("Waiting another %s seconds before we are willing "
                              "to retry any mirror.", delay)
+                logCtrl("WAIT", FOR="MIRROR")
                 time.sleep(delay)
                 continue
 
