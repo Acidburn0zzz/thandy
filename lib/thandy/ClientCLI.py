@@ -138,33 +138,16 @@ def update(args):
             files.add("/meta/timestamp.txt")
             forceCheck = False
 
-        if (thpTransactions or installable) and not files:
-            # for p, d in installable.items():
-            #     for n, i in d.items():
-            #         if i.canInstall():
-            #             logCtrl("CAN_INSTALL", PKG=p, ITEM=n)
-            #         else:
-            #             logCtrl("NO_INSTALL", PKG=p, ITEM=n)
-            #         i.setCacheRoot(repoRoot)
-
-            # logging.info("Ready to install packages for files: %s",
-            #                ", ".join(sorted(installable.keys())))
-            # if install:
-            #     # XXXX handle ordering
-            #     for p in installable.values():
-            #         for h in p.values():
-            #             i = h.getInstaller()
-            #             if i != None:
-            #                 i.install()
-            
+        if thpTransactions and not files:
             for bundle in thpTransactions:
                 tr = thandy.packagesys.ThpPackages.ThpTransaction(thpTransactions[bundle], 
                                                                   alreadyInstalled,
                                                                   repoRoot)
                 if tr.isReady():
                     logCtrl("READY", BUNDLE=bundle)
-                if install:
+                if install and tr.isReady():
                     tr.install()
+                    logCtrl("INSTALLED", BUNDLE=bundle)
 
             return
 
