@@ -70,7 +70,17 @@ class ThpDB(object):
             contents = open(fname, "r").read()
             metadata = json.loads(contents)
             version = metadata['package_version']
-        return fexists, version
+
+        fname = os.path.join(self._thp_db_root, "pkg-status", name+".status")
+        fexists2 = os.path.exists(fname)
+
+        status = ""
+        if fexists2:
+            contents = open(fname, "r").read()
+            metadata = json.loads(contents)
+            status = metadata['status']
+
+        return fexists, version, status
 
     def statusInProgress(self, pkg):
         thandy.util.replaceFile(os.path.join(self._thp_db_root, "pkg-status",
@@ -94,30 +104,35 @@ class ThpChecker(PS.Checker):
 
     def getInstalledVersions(self):
         versions = []
-        (exists, version) = self._db.exists(self._name)
+        (exists, version, status) = self._db.exists(self._name)
 
         if exists:
             versions.append(version)
 
-        return versions
+        return versions, status
 
     def isInstalled(self):
-        return self._version in self.getInstalledVersions()
+        versions, status = self.getInstalledVersions()
+        # if status = IN_PROGRESS a previous installation failed
+        # we need to reinstall
+        return (status != "IN_PROGRESS" and self._version in versions)
 
 class ThpTransaction(object):
-    def __init__(self, packages, repoRoot):
+    def __init__(self, packages, alreadyInstalled, repoRoot):
         self._raw_packages = packages
         self._repo_root = repoRoot
         self._installers = []
+        self._alreadyInstalled = alreadyInstalled
         self._db = ThpDB()
 
         self._process()
 
     def _process(self):
         for package in self._raw_packages.keys():
-            self._installers.append(ThpInstaller(self._raw_packages[package]['files'][0][0],
-                                    self._db,
-                                    self._repo_root))
+            if not (self._raw_packages[package]['files'][0][0] in self._alreadyInstalled):
+                self._installers.append(ThpInstaller(self._raw_packages[package]['files'][0][0],
+                                                     self._db,
+                                                     self._repo_root))
 
     def _orderByDep(self):
         """ Orders packages with a topological order by its dependencies """
@@ -148,6 +163,7 @@ class ThpTransaction(object):
         except LockFailed:
             print "Can't acquire lock on %s" % lockfile
         finally:
+            logging.info("Releasing lock...")
             lock.release()
 
     def remote(self):
@@ -174,10 +190,11 @@ class ThpInstaller(PS.Installer):
         destPath = os.path.join(self._thp_root, self._pkg.get("package_name"))
         logging.info("Destination directory: %s" % destPath)
 
-        if self._db.exists(self._pkg.get("package_name")):
+        (exists, _, _) = self._db.exists(self._pkg.get("package_name"))
+        if exists:
             logging.info("%s is already installed, switching to upgrade mode." % self._pkg.get("package_name"))
             self._db.startUpgrade()
-
+        
         pkg_metadata = self._pkg.getAll()
         self._db.insert(pkg_metadata)
         self._db.statusInProgress(pkg_metadata)

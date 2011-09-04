@@ -5,6 +5,8 @@ import thandy.util
 import thandy.packagesys.PackageSystem
 import thandy.bt_compat
 
+from thandy.util import logCtrl
+
 json = thandy.util.importJSON()
 
 import logging
@@ -300,7 +302,7 @@ class LocalRepository:
     def getFilesToUpdate(self, now=None, trackingBundles=(), hashDict=None,
                          lengthDict=None, usePackageSystem=True,
                          installableDict=None, btMetadataDict=None,
-                         thpTransactionDict=None):
+                         thpTransactionDict=None, alreadyInstalledSet=None):
         """Return a set of relative paths for all files that we need
            to fetch, and True if we're fetching actual files to install
            instead of metadata.  Assumes that we care about the bundles
@@ -330,6 +332,9 @@ class LocalRepository:
         pkgItems = None
 
         need = set()
+
+        if alreadyInstalledSet == None:
+            alreadyInstalledSet = set()
 
         # Fetch missing metafiles.
         for f in self._metaFiles:
@@ -526,7 +531,6 @@ class LocalRepository:
         for pfile in packages.values():
             package = pfile.get()
             
-            alreadyInstalled = set()
             pkgItems = {}
 
             if usePackageSystem:
@@ -541,7 +545,9 @@ class LocalRepository:
                     else:
                         try:
                             if item.getChecker().isInstalled():
-                                alreadyInstalled.add(item.getRelativePath())
+                                alreadyInstalledSet.add(item.getRelativePath())
+                                if item.getRelativePath() in thpTransactionDict.keys():
+                                    thpTransactionDict.pop(item.getRelativePath())
                         except thandy.CheckNotSupported, err:
                             logging.warn("Can't check installed-ness of %s: %s",
                                          f[0], err)
@@ -550,9 +556,10 @@ class LocalRepository:
 
             for f in package['files']:
                 rp, h = f[:2]
-                if rp in alreadyInstalled:
+                if rp in alreadyInstalledSet:
                     logging.info("%s is already installed; no need to download",
                                  rp)
+                    logCtrl("ALREADY", PKG=rp)
                     continue
 
                 h_expected = thandy.formats.parseHash(h)

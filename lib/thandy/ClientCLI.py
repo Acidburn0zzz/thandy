@@ -122,6 +122,7 @@ def update(args):
         installable = {}
         btMetadata = {}
         thpTransactions = {}
+        alreadyInstalled = set()
         logging.info("Checking for files to update.")
         files, downloadingFiles = repo.getFilesToUpdate(
               trackingBundles=args,
@@ -130,34 +131,38 @@ def update(args):
               usePackageSystem=use_packagesys,
               installableDict=installable,
               btMetadataDict=btMetadata,
-              thpTransactionDict=thpTransactions)
+              thpTransactionDict=thpTransactions,
+              alreadyInstalledSet=alreadyInstalled)
 
         if forceCheck:
             files.add("/meta/timestamp.txt")
             forceCheck = False
 
         if (thpTransactions or installable) and not files:
-            for p, d in installable.items():
-                for n, i in d.items():
-                    if i.canInstall():
-                        logCtrl("CAN_INSTALL", PKG=p, ITEM=n)
-                    else:
-                        logCtrl("NO_INSTALL", PKG=p, ITEM=n)
-                    i.setCacheRoot(repoRoot)
+            # for p, d in installable.items():
+            #     for n, i in d.items():
+            #         if i.canInstall():
+            #             logCtrl("CAN_INSTALL", PKG=p, ITEM=n)
+            #         else:
+            #             logCtrl("NO_INSTALL", PKG=p, ITEM=n)
+            #         i.setCacheRoot(repoRoot)
 
-            logging.info("Ready to install packages for files: %s",
-                           ", ".join(sorted(installable.keys())))
-            if install:
-                # XXXX handle ordering
-                for p in installable.values():
-                    for h in p.values():
-                        i = h.getInstaller()
-                        if i != None:
-                            i.install()
+            # logging.info("Ready to install packages for files: %s",
+            #                ", ".join(sorted(installable.keys())))
+            # if install:
+            #     # XXXX handle ordering
+            #     for p in installable.values():
+            #         for h in p.values():
+            #             i = h.getInstaller()
+            #             if i != None:
+            #                 i.install()
+            
+            logCtrl("READY", BUNDLE=",".join(thpTransactions.keys()))
 
             for bundle in thpTransactions:
                 if install:
                     thandy.packagesys.ThpPackages.ThpTransaction(thpTransactions[bundle], 
+                                                                 alreadyInstalled,
                                                                  repoRoot).install()
 
             return

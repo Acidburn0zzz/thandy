@@ -13,6 +13,8 @@ import thandy.util
 import thandy.socksurls
 import thandy.checkJson
 
+from thandy.util import logCtrl
+
 class BadCompoundData(thandy.DownloadError):
     """DOCDOC"""
     pass
@@ -514,6 +516,7 @@ class DownloadJob:
                 total += len(c)
                 logging.debug("Got %s/%s bytes from %s",
                               total, expectLength, url)
+                logCtrl("DOWNLOAD", TOTAL=str(total), EXPECT=str(expectLength), URL=url)
                 if self._wantLength != None and total > self._wantLength:
                     logging.warn("Read too many bytes from %s; got %s, but "
                                  "wanted %s", url, total, self._wantLength)
