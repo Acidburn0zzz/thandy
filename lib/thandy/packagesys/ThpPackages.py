@@ -249,8 +249,8 @@ class ThpInstaller(PS.Installer):
               logging.info("Processing file: %s" % file)
               try:
                   # Create all the needed dirs
-                  os.makedirs(os.sep.join((os.path.join(destPath, file['name'])
-                    .split(os.path.sep)[:-1])))
+                  os.makedirs(os.path.join((os.path.join(destPath, file['name'])
+                    .split("/")[:-1])))
               except:
                   # Ignore if it already exists
                   pass
