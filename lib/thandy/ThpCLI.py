@@ -40,29 +40,9 @@ def makethppackage(args):
     metadata = thandy.formats.makeThpPackageObj(configFile, dataPath)
 
     print "Generating directory structure..."
-    try:
-        os.mkdir(os.path.join(tmpPath, "meta"));
-    except Exception as e:
-        print e
-        thandy.util.deltree(tmpPath)
-        sys.exit(1)
 
-    thandy.util.replaceFile(os.path.join(tmpPath, "meta", "package.json"),
+    thandy.util.replaceFile(os.path.join(tmpPath, "package.json"),
                             json.dumps(metadata, indent=3))
-
-    shutil.copytree(dataPath, os.path.join(tmpPath, "content"))
-
-    if "scripts" in metadata:
-      try:
-          os.mkdir(os.path.join(tmpPath, "meta", "scripts"))
-      except Exception as e:
-          print e
-          thandy.util.deltree(tmpPath)
-          sys.exit(1)
-      for lang in metadata["scripts"]:
-        for script in metadata['scripts'][lang]:
-          shutil.copyfile(os.path.join(scriptsPath, script[0]),
-                          os.path.join(tmpPath, "meta", "scripts", script[0]))
 
     thpFileName = "%s-%s.thp" % (metadata['package_name'],
                                  metadata['package_version'])
@@ -72,16 +52,16 @@ def makethppackage(args):
                                            thpFileName), "w")
 
     for file in metadata['manifest']:
-        thpFile.write(os.path.join(tmpPath, "content", file['name']),
+        thpFile.write(os.path.join(dataPath, file['name']),
                       os.path.join("content", file['name']))
 
     if "scripts" in metadata:
       for lang in metadata["scripts"]:
         for script in metadata['scripts'][lang]:
-          thpFile.write(os.path.join(tmpPath, "meta", "scripts", script[0]),
+          thpFile.write(os.path.join(scriptsPath, script[0]),
                         os.path.join("meta", "scripts", script[0]))
 
-    thpFile.write(os.path.join(tmpPath, "meta", "package.json"),
+    thpFile.write(os.path.join(tmpPath, "package.json"),
                   os.path.join("meta", "package.json"))
 
     thpFile.close()
