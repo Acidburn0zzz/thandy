@@ -19,6 +19,8 @@ import thandy.packagesys.PackageDB as PDB
 json = thandy.util.importJSON()
 
 class ThpDB(object):
+    """ Represents the installed (or not) Thp Packages in the system """
+
     def __init__(self):
         self._upgrade = False
         self._thp_db_root = os.environ.get("THP_DB_ROOT")
@@ -29,12 +31,17 @@ class ThpDB(object):
             os.mkdir(dbpath)
 
     def getPath(self):
+        """ Returns the path to the database root """
         return self._thp_db_root
 
     def startUpgrade(self):
+        """ Called when an upgrade of a package starts """
         self._upgrade = True
 
     def finishUpgrade(self, name):
+        """ Called when an upgrade of a package finishes.
+            If something goes wrong, this isn't called, and it will be
+            detected next time """
         fname = os.path.join(self._thp_db_root, "pkg-status", name+".json")
         shutil.move(fname+".new", fname)
         self._upgrade = False
@@ -43,6 +50,9 @@ class ThpDB(object):
         return self._upgrade
 
     def insert(self, pkg):
+        """ Adds an entry in the database for the package. If it's an
+            upgrade, it means that there's already an entry for this
+            package, so it adds a ".new" to the name. """
         fname = os.path.join(self._thp_db_root, "pkg-status",
                              pkg['package_name']+".json")
         if self._upgrade:
@@ -52,6 +62,7 @@ class ThpDB(object):
                                 json.dumps(pkg))
 
     def delete(self, pkg):
+        """ Removes an entry from the database. """
         try:
           os.unlink(os.path.join(self._thp_db_root, "pkg-status",
                                  pkg['package_name'])+".json")
@@ -62,6 +73,11 @@ class ThpDB(object):
         self.insert(pkg)
 
     def exists(self, name):
+        """ Returns a tuple (fexists, version, status). Which
+            represent a boolean that is true if the entry exists, the
+            version of the package installed, and the status of the
+            installation (in case the previous installation went wrong
+            somehow) respectively. """
         fname = os.path.join(self._thp_db_root, "pkg-status", name+".json")
         fexists = os.path.exists(fname)
 
@@ -83,16 +99,19 @@ class ThpDB(object):
         return fexists, version, status
 
     def statusInProgress(self, pkg):
+        """ Updates the status of a package entry to "IN-PROGRESS". """
         thandy.util.replaceFile(os.path.join(self._thp_db_root, "pkg-status",
                                              pkg['package_name']+".status"),
                                 json.dumps({ "status" : "IN-PROGRESS" }))
 
     def statusInstalled(self, pkg):
+        """ Updates the status of a package entry to "INSTALLED". """
         thandy.util.replaceFile(os.path.join(self._thp_db_root, "pkg-status",
                                              pkg['package_name']+".status"),
                                 json.dumps({ "status" : "INSTALLED" }))
 
 class ThpChecker(PS.Checker):
+    """ Installation checker for Thp packages. """
     def __init__(self, name, version):
         PS.Checker.__init__(self)
         self._name = name
@@ -103,6 +122,9 @@ class ThpChecker(PS.Checker):
         return "ThpChecker(%r, %r)"%(self._name, self._version)
 
     def getInstalledVersions(self):
+        """ Returns a tuple (version, status). Which represent a list
+            of versions of the installed packages and the status of the
+            installation. """
         versions = []
         (exists, version, status) = self._db.exists(self._name)
 
@@ -112,12 +134,14 @@ class ThpChecker(PS.Checker):
         return versions, status
 
     def isInstalled(self):
+        """ Returns true if the package is installed properly. """
         versions, status = self.getInstalledVersions()
         # if status = IN_PROGRESS a previous installation failed
         # we need to reinstall
         return (status != "IN_PROGRESS" and self._version in versions)
 
 class ThpTransaction(object):
+    """ Represents the installation of a bundle that contains thp packages. """
     def __init__(self, packages, alreadyInstalled, repoRoot):
         self._raw_packages = packages
         self._repo_root = repoRoot
@@ -128,6 +152,8 @@ class ThpTransaction(object):
         self._process()
 
     def _process(self):
+        """ Generates a list of ThpInstallers depending on whether the
+            package is already installed or not. """
         for package in self._raw_packages.keys():
             if not (self._raw_packages[package]['files'][0][0] in self._alreadyInstalled):
                 self._installers.append(ThpInstaller(self._raw_packages[package]['files'][0][0],
@@ -135,13 +161,17 @@ class ThpTransaction(object):
                                                      self._repo_root))
 
     def isReady(self):
+        """ A transaction is ready to be installed if it has at least
+            one installer to be used. """
         return (len(self._installers) > 0)
 
     def _orderByDep(self):
-        """ Orders packages with a topological order by its dependencies """
+        """ Orders packages with a topological order by its
+            dependencies (not implemented, obviously). """
         return self._installers
 
     def install(self):
+        """ Installs the packages that belong to the transaction. """
         lockfile = os.path.join(self._db.getPath(), "db")
         lock = LockFile(lockfile)
         try:
@@ -169,10 +199,11 @@ class ThpTransaction(object):
             logging.info("Releasing lock...")
             lock.release()
 
-    def remote(self):
+    def remove(self):
         raise NotImplemented()
 
 class ThpInstaller(PS.Installer):
+    """ Represents an installer for an individual Thp package. """
     def __init__(self, relPath, db = None, repoRoot = None):
         PS.Installer.__init__(self, relPath)
         self._db = db
@@ -185,6 +216,7 @@ class ThpInstaller(PS.Installer):
         return "ThpInstaller(%r)" %(self._relPath)
 
     def install(self):
+        """ Installs the Thp package (copies the file structure to the installation root). """
         logging.info("Running thp installer %s %s" % (self._cacheRoot, self._relPath))
         self._thp_root = os.environ.get("THP_INSTALL_ROOT")
         if self._thp_root is None:
@@ -239,6 +271,7 @@ class ThpInstaller(PS.Installer):
         return self._pkg.run(key)
 
 class ThpPackage(object):
+    """ Represents a Thp Package. """
     def __init__(self, thp_path):
         self._thp_path = thp_path
         self._metadata = None
@@ -255,6 +288,8 @@ class ThpPackage(object):
         print "ThpPackage(%s)" % self._thp_path
 
     def _process(self):
+        """ Extracts the package, validates its files and creates the
+            ScriptWrappers. """
         self._tmp_path = tempfile.mkdtemp(suffix=str(time.time()),
                                    prefix="thp")
 
@@ -293,13 +328,16 @@ class ThpPackage(object):
                 sys.exit(1)
 
     def get(self, key):
+        """ Accessor for a metadata key. """
         if self._metadata:
             return self._metadata.get(key)
 
     def getAll(self):
+        """ Accessor to all the metadata. """
         return self._metadata
 
     def getDeps(self):
+        """ Return the dependencies especified in the metadata. """
         if 'require_packages' in self._metadata.keys():
             return self._metadata['require_packages']
 
@@ -310,6 +348,9 @@ class ThpPackage(object):
         return self._tmp_path
 
     def _validateFiles(self, tmpPath):
+        """ Validates the files based on the manifest
+            information. Returns a list of invalid files, in case they are
+            found. """
         for manifest in self._metadata['manifest']:
             name = manifest['name']
             digest = manifest['digest']
@@ -322,16 +363,20 @@ class ThpPackage(object):
         return (True, None)
 
     def run(self, key):
+        """ Executes a script from the package. """
         if key in self._scripts.keys():
             return self._scripts[key].run()
         return 0
 
 class ScriptWrapper(object):
+    """ Wrapper for the scripts in the Thp package. """
     def __init__(self, path = None, env = None):
         self._path = path
         self._env = None
 
     def run(self):
+        """ Abstracts how a script is executed. In this case, another
+            python instance is executed with the necessary env. """
         self._process = subprocess.Popen(["python", self._path], 
                                          env=self._env)
         self._process.wait()
