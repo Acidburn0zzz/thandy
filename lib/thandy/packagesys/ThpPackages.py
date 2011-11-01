@@ -140,7 +140,7 @@ class ThpChecker(PS.Checker):
         versions, status = self.getInstalledVersions()
         # if status = IN_PROGRESS a previous installation failed
         # we need to reinstall
-        return (status != "IN_PROGRESS" and self._version in versions)
+        return (status == "INSTALLED" and self._version in versions)
 
 class ThpTransaction(object):
     """ Represents the installation of a bundle that contains thp packages. """
