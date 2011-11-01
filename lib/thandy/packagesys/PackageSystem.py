@@ -121,6 +121,16 @@ def getInstaller(relPath, extra, defaultFormat, package):
 
     return installer
 
+def getTransaction(transactionType, packages, alreadyInstalledSet, cacheRoot):
+    """ Return a transaction from the type transactionType considering
+        the alreadyInstalledSet and that works in the cacheRoot """
+    if transactionType == "thp":
+        import thandy.packagesys.ThpPackages
+        return thandy.packagesys.ThpPackages.ThpTransaction(packages,
+                                                            alreadyInstalledSet,
+                                                            cacheRoot)
+    return None
+
 class PackageItem:
     """Represents a single item from a package."""
     def __init__(self, relativePath, checker, installer):
@@ -237,4 +247,23 @@ class Installer:
         "DOCDOC params, manifest"
         return None, None
 
+class Transaction(object):
+    """ Abstract base class. A Transaction knows how to install or
+        remove a bundle. """
+    def __init__(self, packages, alreadyInstalled, repoRoot):
+        self._raw_packages = packages
+        self._repo_root = repoRoot
+        self._alreadyInstalled = alreadyInstalled
 
+    def isReady(self):
+        """ Returns True if the transaction is ready to start installing
+            or removing a bundle. """
+        raise NotImplemented()
+
+    def install(self):
+        """ Installs the packages that belong to this transaction. """
+        raise NotImplemented()
+
+    def remove(self):
+        """ Removes the packages that belong to this transaction. """
+        raise NotImplemented()

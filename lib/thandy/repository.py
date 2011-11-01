@@ -302,12 +302,13 @@ class LocalRepository:
     def getFilesToUpdate(self, now=None, trackingBundles=(), hashDict=None,
                          lengthDict=None, usePackageSystem=True,
                          installableDict=None, btMetadataDict=None,
-                         thpTransactionDict=None, alreadyInstalledSet=None):
+                         alreadyInstalledSet=None,
+                         cacheRoot=None):
         """Return a set of relative paths for all files that we need
            to fetch, and True if we're fetching actual files to install
            instead of metadata.  Assumes that we care about the bundles
            'trackingBundles'.
-           DOCDOC installableDict, hashDict, usePackageSystem, thpTransaction
+           DOCDOC installableDict, hashDict, usePackageSystem
         """
 
         if now == None:
@@ -326,10 +327,8 @@ class LocalRepository:
         if btMetadataDict == None:
             btMetadataDict = {}
 
-        if thpTransactionDict == None:
-            thpTransactionDict = {}
-
         pkgItems = None
+        transactions = {}
 
         need = set()
 
@@ -497,10 +496,8 @@ class LocalRepository:
 
                 packages[rp] = pfile
 
-                if pfile_data["format"] == "thp":
-                    if not bundle['name'] in thpTransactionDict.keys():
-                        thpTransactionDict[bundle['name']] = {}
-                    thpTransactionDict[bundle['name']][pfile_data['name']] = pfile_data
+                transactions.setdefault(pfile_data["format"], {})\
+                            .setdefault(bundle["name"], {})[pfile_data["name"]] = pfile_data
 
         # We have the packages. If we're downloading via bittorrent, we need
         # the .torrent metafiles, as well.
@@ -546,8 +543,6 @@ class LocalRepository:
                         try:
                             if item.getChecker().isInstalled():
                                 alreadyInstalledSet.add(item.getRelativePath())
-                                if item.getRelativePath() in thpTransactionDict.keys():
-                                    thpTransactionDict.pop(item.getRelativePath())
                         except thandy.CheckNotSupported, err:
                             logging.warn("Can't check installed-ness of %s: %s",
                                          f[0], err)
@@ -577,14 +572,15 @@ class LocalRepository:
                 if h_got != h_expected:
                     logging.info("Hash for %s not as expected; must load.", rp)
                     need.add(rp)
-                else:
-                    # XXX What if not? Maybe this should always be true.
-                    # if that works, we can get rid of the second return
-                    # value and just use installableDict from the caller.
-                    if pkgItems.has_key(rp):
-                        if pkgItems[rp]:
-                          installableDict.setdefault(pkg_rp, {})[rp] = pkgItems[rp]
 
-
+        if len(need) == 0:
+            # We have done everything, lets see if we have thp bundles,
+            # and create the transaction for it as the installable item
+            for transaction_type in transactions:
+                for bundle in transactions[transaction_type]:
+                    installableDict[bundle] = thandy.packagesys.PackageSystem.getTransaction(transaction_type,
+                                                                                             transactions[transaction_type][bundle], 
+                                                                                             alreadyInstalledSet,
+                                                                                             cacheRoot)
         # Okay; these are the files we need.
         return need, True

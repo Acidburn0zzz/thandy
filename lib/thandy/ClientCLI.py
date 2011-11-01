@@ -15,7 +15,6 @@ import thandy.repository
 import thandy.download
 import thandy.master_keys
 import thandy.packagesys.PackageSystem
-import thandy.packagesys.ThpPackages
 import thandy.socksurls
 import thandy.encodeToXML
 
@@ -121,7 +120,6 @@ def update(args):
         lengths = {}
         installable = {}
         btMetadata = {}
-        thpTransactions = {}
         alreadyInstalled = set()
         logging.info("Checking for files to update.")
         files, downloadingFiles = repo.getFilesToUpdate(
@@ -131,23 +129,24 @@ def update(args):
               usePackageSystem=use_packagesys,
               installableDict=installable,
               btMetadataDict=btMetadata,
-              thpTransactionDict=thpTransactions,
-              alreadyInstalledSet=alreadyInstalled)
+              alreadyInstalledSet=alreadyInstalled,
+              cacheRoot=repoRoot)
 
         if forceCheck:
             files.add("/meta/timestamp.txt")
             forceCheck = False
 
-        if thpTransactions and not files:
-            for bundle in thpTransactions:
-                tr = thandy.packagesys.ThpPackages.ThpTransaction(thpTransactions[bundle], 
-                                                                  alreadyInstalled,
-                                                                  repoRoot)
-                if tr.isReady():
+        if installable and not files:
+            for bundle, transaction in installable.items():
+                if transaction.isReady():
                     logCtrl("READY", BUNDLE=bundle)
-                if install and tr.isReady():
-                    tr.install()
-                    logCtrl("INSTALLED", BUNDLE=bundle)
+                    logging.info("Ready to install packages for files: %s",
+                                 ", ".join(sorted(installable.keys())))
+
+            if install:
+                for p in installable.values():
+                    if p.isReady():
+                        p.install()
 
             return
 

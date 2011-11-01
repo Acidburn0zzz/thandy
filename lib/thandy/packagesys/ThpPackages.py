@@ -142,7 +142,7 @@ class ThpChecker(PS.Checker):
         # we need to reinstall
         return (status == "INSTALLED" and self._version in versions)
 
-class ThpTransaction(object):
+class ThpTransaction(PS.Transaction):
     """ Represents the installation of a bundle that contains thp packages. """
     def __init__(self, packages, alreadyInstalled, repoRoot):
         self._raw_packages = packages
@@ -254,8 +254,12 @@ class ThpInstaller(PS.Installer):
               except:
                   # Ignore if it already exists
                   pass
+
+              if "/" in file["name"]:
+                  os.makedirs("/".join([destPath] + file["name"].split("/")[:-1]))
+
               shutil.copy(os.path.join(self._pkg.getTmpPath(), "content", file['name']),
-                              os.path.join(destPath, file['name']));
+                          os.path.join(destPath, file['name']));
 
         if self._db.isUpgrading():
             logging.info("Finishing upgrade.")
