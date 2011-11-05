@@ -8,6 +8,7 @@ import time
 import shutil
 import subprocess
 import sys
+import errno
 
 from lockfile import LockFile, AlreadyLocked, LockFailed
 
@@ -261,7 +262,11 @@ class ThpInstaller(PS.Installer):
                   pass
 
               if "/" in file["name"]:
-                  os.makedirs("/".join([destPath] + file["name"].split("/")[:-1]))
+                  try:
+                      os.makedirs(os.path.join(*([destPath] + file["name"].split("/")[:-1])))
+                  except OSError, e:
+                      if e.errno != errno.EEXIST:
+                          raise e
 
               shutil.copy(os.path.join(self._pkg.getTmpPath(), "content", file['name']),
                           os.path.join(destPath, file['name']));
