@@ -16,6 +16,8 @@ import thandy.formats
 import thandy.packagesys.PackageSystem as PS
 import thandy.packagesys.PackageDB as PDB
 
+from thandy.util import logCtrl
+
 json = thandy.util.importJSON()
 
 class ThpDB(object):
@@ -184,15 +186,18 @@ class ThpTransaction(PS.Transaction):
             for pkg in order:
                 if pkg.run('checkinst') != 0:
                     logging.info("Check inst failed for %s" % pkg)
+                    logCtrl("ERROR", SCRIPT="checkinst")
                     sys.exit(1)
             for pkg in order:
                 logging.info("Starting installation using %s" % pkg)
                 if pkg.run('preinst') != 0:
                     logging.info("Preinst script for %s failed" % pkg)
+                    logCtrl("ERROR", SCRIPT="preinst")
                     sys.exit(1)
                 pkg.install()
                 if pkg.run('postinst') != 0:
                     logging.info("postinst script failed")
+                    logCtrl("ERROR", SCRIPT="postinst")
         except AlreadyLocked:
             print "You can't run more than one instance of Thandy"
         except LockFailed:
