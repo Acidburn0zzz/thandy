@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import errno
+import traceback
 
 from lockfile import LockFile, AlreadyLocked, LockFailed
 
@@ -334,9 +335,9 @@ class ThpPackage(object):
                     env['THP_VERBOSE'] = "1"
                     env['THP_PURGE'] = "0"
                     env['THP_TEMP_DIR'] = self._tmp_path
-
-                    sw = ScriptWrapper(os.path.join(self._tmp_path, "meta", 
-                                       "scripts", script[0]), env)
+                    
+                    sw = ScriptBundleWrapper(os.path.join(self._tmp_path, "meta", 
+                                                          "scripts", script[0]), env)
 
                     for type in script[1]:
                         self._scripts[type] = sw
@@ -397,3 +398,32 @@ class ScriptWrapper(object):
                                          env=self._env)
         self._process.wait()
         return self._process.returncode
+
+class ScriptBundleWrapper(object):
+    """ Wrapper for the scripts that runs the code without spawning
+        another python process. This is mostly for handling
+        multiplatform code. """
+    def __init__(self, path = None, env = None):
+        super(ScriptBundleWrapper, self).__init__()
+        self._path = path
+        self._env = env
+
+    def run(self):
+        """ Runs the script using the code class. """
+        loc = {}
+        glob = {}
+        old_environ = os.environ.copy()
+        os.environ.clear()
+        os.environ.update(self._env)
+        try:
+            execfile(self._path, loc, glob)
+        except SystemExit, e:
+            return 1
+        except:
+            traceback.print_exc()
+            return 1
+        finally:
+            os.environ.clear()
+            os.environ.update(old_environ)
+
+        return 0
