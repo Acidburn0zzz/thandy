@@ -324,15 +324,15 @@ class ThpPackage(object):
         if "scripts" in self._metadata:
             if "python2" in self._metadata['scripts']:
                 for script in self._metadata['scripts']['python2']:
-                    env = {}
+                    env = os.environ.copy()
                     env['THP_PACKAGE_NAME'] = self._metadata['package_name']
                     env['THP_OLD_VERSION'] = ""
                     env['THP_NEW_VERSION'] = self._metadata['package_version']
                     env['THP_OLD_INSTALL_ROOT'] = ""
                     env['THP_INSTALL_ROOT'] = os.getenv("THP_INSTALL_ROOT")
                     env['THP_JSON_FILE'] = json_file
-                    env['THP_VERBOSE'] = 1
-                    env['THP_PURGE'] = 0
+                    env['THP_VERBOSE'] = "1"
+                    env['THP_PURGE'] = "0"
                     env['THP_TEMP_DIR'] = self._tmp_path
 
                     sw = ScriptWrapper(os.path.join(self._tmp_path, "meta", 
@@ -388,7 +388,7 @@ class ScriptWrapper(object):
     """ Wrapper for the scripts in the Thp package. """
     def __init__(self, path = None, env = None):
         self._path = path
-        self._env = None
+        self._env = env
 
     def run(self):
         """ Abstracts how a script is executed. In this case, another
