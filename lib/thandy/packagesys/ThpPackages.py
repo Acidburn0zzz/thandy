@@ -249,7 +249,7 @@ class ThpInstaller(PS.Installer):
             logging.info("%s: Already exists, using it." % dir)
 
         for file in self._pkg.get('manifest'):
-            if file['is_config']:
+            if file['is_config'] and exists:
                 logging.info("Ignoring file: %s" % file)
             else:
               logging.info("Processing file: %s" % file)
