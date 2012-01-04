@@ -213,9 +213,10 @@ class ThpTransaction(PS.Transaction):
 
 class ThpInstaller(PS.Installer):
     """ Represents an installer for an individual Thp package. """
-    def __init__(self, relPath, db = None, repoRoot = None):
+    def __init__(self, relPath, db = None, repoRoot = None, dest = ""):
         PS.Installer.__init__(self, relPath)
         self._db = db
+        self._dest = dest
         self.setCacheRoot(repoRoot)
         if db is None:
             self._db = ThpDB()
@@ -243,9 +244,12 @@ class ThpInstaller(PS.Installer):
         self._db.insert(pkg_metadata)
         self._db.statusInProgress(pkg_metadata)
 
-        dir = os.path.join(self._thp_root, self._pkg.get("package_name"))
+        if len(self._dest) == 0:
+            dir = os.path.join(self._thp_root, self._pkg.get("package_name"))
+        else:
+            dir = os.path.join(self._thp_root, self._dest)
         try:
-            os.mkdir(dir)
+            os.makedirs(dir)
         except:
             logging.info("%s: Already exists, using it." % dir)
 

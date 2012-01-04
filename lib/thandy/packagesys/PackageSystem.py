@@ -110,7 +110,7 @@ def getInstaller(relPath, extra, defaultFormat, package):
     elif installType == 'thp':
         import thandy.packagesys.ThpPackages
         installer = thandy.packagesys.ThpPackages.ThpInstaller(
-            relPath)
+            relPath, extra['thp_dest'])
     else:
         return None
 

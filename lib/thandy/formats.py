@@ -746,7 +746,7 @@ def makePackageObj(config_fname, package_fname):
                             'exe_registry_ent',
                             'db_key', 'db_val',
                             'command_install', 'command_remove',
-                            'thp_name', 'thp_version',
+                            'thp_name', 'thp_version', 'thp_dest'
                             ], preload)
 
     f = open(package_fname, 'rb')
@@ -790,6 +790,10 @@ def makePackageObj(config_fname, package_fname):
         if not r.get('thp_version'):
             raise thandy.FormatException("missing thp_version value")
         extra['thp_version'] = r['thp_version']
+        if not r.get('thp_dest'):
+            extra['thp_dest'] = ""
+        else:
+            extra['thp_dest'] = r['thp_dest']
 
     if r.get('command_install'):
         extra['install_type'] = 'command'
