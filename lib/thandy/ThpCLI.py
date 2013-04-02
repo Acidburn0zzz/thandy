@@ -48,7 +48,7 @@ def makethppackage(args):
                                  metadata['package_version'])
 
     print "Generating thp file in %s" % thpFileName
-    thpFile = zipfile.ZipFile(os.path.join(thpPath, 
+    thpFile = zipfile.ZipFile(os.path.join(thpPath,
                                            thpFileName), "w")
 
     for file in metadata['manifest']:

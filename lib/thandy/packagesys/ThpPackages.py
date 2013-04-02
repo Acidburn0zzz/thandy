@@ -232,22 +232,19 @@ class ThpInstaller(PS.Installer):
         if self._thp_root is None:
             raise Exception("There is no THP_INSTALL_ROOT variable set")
 
-        destPath = os.path.join(self._thp_root, self._pkg.get("package_name"))
+        destPath = os.path.join(self._thp_root)#, self._pkg.get("package_name"))
         logging.info("Destination directory: %s" % destPath)
 
         (exists, _, _) = self._db.exists(self._pkg.get("package_name"))
         if exists:
             logging.info("%s is already installed, switching to upgrade mode." % self._pkg.get("package_name"))
             self._db.startUpgrade()
-        
+
         pkg_metadata = self._pkg.getAll()
         self._db.insert(pkg_metadata)
         self._db.statusInProgress(pkg_metadata)
 
-        if len(self._dest) == 0:
-            dir = os.path.join(self._thp_root, self._pkg.get("package_name"))
-        else:
-            dir = os.path.join(self._thp_root, self._dest)
+        dir = os.path.join(self._thp_root, self._dest)
         try:
             os.makedirs(dir)
         except:
@@ -260,21 +257,20 @@ class ThpInstaller(PS.Installer):
               logging.info("Processing file: %s" % file)
               try:
                   # Create all the needed dirs
-                  os.makedirs(os.path.join((os.path.join(destPath, file['name'])
-                    .split("/")[:-1])))
+                  os.makedirs(os.path.dirname(os.path.join(destPath, file['name'])))
               except:
                   # Ignore if it already exists
                   pass
 
-              if "/" in file["name"]:
-                  try:
-                      os.makedirs(os.path.join(*([destPath] + file["name"].split("/")[:-1])))
-                  except OSError, e:
-                      if e.errno != errno.EEXIST:
-                          raise e
+              # if "/" in file["name"]:
+              #     try:
+              #         os.makedirs(os.path.join(*([destPath] + file["name"].split("/")[:-1])))
+              #     except OSError, e:
+              #         if e.errno != errno.EEXIST:
+              #             raise e
 
               shutil.copy(os.path.join(self._pkg.getTmpPath(), "content", file['name']),
-                          os.path.join(destPath, file['name']));
+                          os.path.join(destPath, file['name']))
 
         if self._db.isUpgrading():
             logging.info("Finishing upgrade.")
@@ -339,8 +335,8 @@ class ThpPackage(object):
                     env['THP_VERBOSE'] = "1"
                     env['THP_PURGE'] = "0"
                     env['THP_TEMP_DIR'] = self._tmp_path
-                    
-                    sw = ScriptBundleWrapper(os.path.join(self._tmp_path, "meta", 
+
+                    sw = ScriptBundleWrapper(os.path.join(self._tmp_path, "meta",
                                                           "scripts", script[0]), env)
 
                     for type in script[1]:
@@ -398,7 +394,7 @@ class ScriptWrapper(object):
     def run(self):
         """ Abstracts how a script is executed. In this case, another
             python instance is executed with the necessary env. """
-        self._process = subprocess.Popen(["python", self._path], 
+        self._process = subprocess.Popen(["python", self._path],
                                          env=self._env)
         self._process.wait()
         return self._process.returncode

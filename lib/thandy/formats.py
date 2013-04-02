@@ -579,7 +579,7 @@ THP_PACKAGE_SCHEMA = S.Obj(
             platform=S.Opt(S.DictOf(S.AnyStr(), S.AnyStr())),
             require_features=S.Opt(S.ListOf(S.AnyStr())),
             require_packages=S.Opt(S.ListOf(S.ListOf(S.AnyStr()))),
-            scripts=S.Opt(S.DictOf(S.AnyStr(), 
+            scripts=S.Opt(S.DictOf(S.AnyStr(),
               S.ListOf(S.Struct([S.AnyStr(), S.ListOf(S.AnyStr())])))))
 
 PACKAGE_SCHEMA = S.Func(checkPackageFormatConsistency, PACKAGE_SCHEMA)
@@ -714,7 +714,7 @@ def readConfigFile(fname, needKeys=(), optKeys=(), preload={}):
         try:
             result[k] = parsed[k]
         except KeyError:
-            raise thandy.FormatException("Missing value for %s in %s"%k,fname)
+            raise thandy.FormatException("Missing value for %s in %s" % (k, fname))
 
     for k in optKeys:
         try:
@@ -825,7 +825,7 @@ def makeThpPackageObj(config_fname, package_path):
        package_fname, return a new unsigned package object.
     """
     preload = {}
-    optKeys = ['additional_files', 
+    optKeys = ['additional_files',
                'install_order',
                'options',
                'platform',
@@ -833,6 +833,7 @@ def makeThpPackageObj(config_fname, package_path):
                'require_packages',
                'scripts'
               ]
+
     r = readConfigFile(config_fname,
                        ['format_version',
                         'files',

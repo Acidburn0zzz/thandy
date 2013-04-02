@@ -9,7 +9,7 @@ thp_template = Template("""format_version = 1
 package_name = "$thp_name"
 package_version = "$version"
 package_version_tuple = [$version_list]
-files = [ 
+files = [
 $files
 ]
 
@@ -20,7 +20,7 @@ platform = { "os" : "$os",
              "arch" : "$arch" }
 require_features = [ "pythonscripts" ]
 require_packages = []
-scripts = { "python2" : 
+scripts = { "python2" :
               [ $scripts ]
           }
 """)
@@ -41,14 +41,16 @@ def usage():
 def get_files(top, configs):
     ready = []
     raw = []
+
     for root, dirs, files in os.walk(top):
         for f in files:
             is_config = "False"
-            f_value = "/".join([root, f]).replace(top, "")
+            f_value = os.path.join(root, f).replace(top, "")
             if f_value in configs:
                 is_config = "True"
+            print f_value, os.path.join(root, f).replace(top, "")
             ready.append("(\"%s\", %s)," % (f_value, is_config))
-            raw.append("/".join([root, f]).replace(top, ""))
+            raw.append(os.path.join(root, f).replace(top, ""))
     return ready, raw
 
 def thpconfig(args):
@@ -87,7 +89,7 @@ def thpconfig(args):
     configs = []
     if len(config_file_list) != 0:
         configs = open(config_file_list, "r").read().split("\n")
-        
+
     files, raw = get_files(scan_dir, configs)
     mapping["files"] = "\n".join(files)
 

@@ -438,6 +438,16 @@ class DownloadJob:
            the hash and/or format we need."""
         if self._wantHash and not self._repoFile:
             gotHash = thandy.formats.getFileDigest(self._tmpPath)
+            with open(self._tmpPath, "r") as f:
+                data = f.read()
+                import json
+                obj = json.loads(data)
+                main_obj = obj['signed']
+                gotHash = thandy.formats.getDigest(main_obj)
+                #print self._tmpPath, "ObjHash:", thandy.formats.formatHash(jsonHash)
+
+            print self._tmpPath, "Got:", thandy.formats.formatHash(gotHash)
+            print self._tmpPath, "Expected:", thandy.formats.formatHash(self._wantHash)
             if gotHash != self._wantHash:
                 raise thandy.FormatException("File hash was not as expected.")
         elif self._repoFile:

@@ -207,7 +207,7 @@ class PkgFile:
         """DOCDOC"""
         if needHash:
             if thandy.formats.getFileDigest(fname) != needHash:
-                raise thandy.FormatException("Digest for %s not as expected.")
+                raise thandy.FormatException("Digest for %s not as expected.", fname)
 
 class LocalRepository:
     """Represents a client's partial copy of a remote mirrored repository."""
@@ -291,11 +291,14 @@ class LocalRepository:
         for f in self._packageFiles.itervalues():
             if f.getRelativePath() == relPath:
                 return f
-            f.load()
-            for item in f.get()['files']:
-                rp, h = item[:2]
-                if rp == relPath:
-                    return PkgFile(self, rp, thandy.formats.parseHash(h))
+            try:
+                f.load()
+                for item in f.get()['files']:
+                    rp, h = item[:2]
+                    if rp == relPath:
+                        return PkgFile(self, rp, thandy.formats.parseHash(h))
+            except:
+                return None
 
         return None
 
@@ -527,7 +530,7 @@ class LocalRepository:
         # files?
         for pfile in packages.values():
             package = pfile.get()
-            
+
             pkgItems = {}
 
             if usePackageSystem:
@@ -560,7 +563,8 @@ class LocalRepository:
                 h_expected = thandy.formats.parseHash(h)
                 hashDict[rp] = h_expected
                 if len(f) > 3:
-                    lengthDict[rp] = h[3]
+                    print "N"*10, f[3]
+                    lengthDict[rp] = f[3]
                 fn = self.getFilename(rp)
                 try:
                     h_got = thandy.formats.getFileDigest(fn)
@@ -579,7 +583,7 @@ class LocalRepository:
             for transaction_type in transactions:
                 for bundle in transactions[transaction_type]:
                     installableDict[bundle] = thandy.packagesys.PackageSystem.getTransaction(transaction_type,
-                                                                                             transactions[transaction_type][bundle], 
+                                                                                             transactions[transaction_type][bundle],
                                                                                              alreadyInstalledSet,
                                                                                              cacheRoot)
         # Okay; these are the files we need.
