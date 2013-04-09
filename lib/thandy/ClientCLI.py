@@ -20,6 +20,10 @@ import thandy.encodeToXML
 
 json = thandy.util.importJSON()
 
+from leap.common.events import signal
+from leap.common.events import events_pb2 as proto
+
+
 class ControlLogFormatter:
     def format(self, record):
         name = record.name
@@ -53,15 +57,15 @@ def configureLogs(options):
     console = logging.StreamHandler()
     console.setLevel(logLevel)
     logger = logging.getLogger("")
-    logger.addHandler(console)
-    logger.setLevel(logLevel)
-    if cLogFormat:
-        #formatter = logging.Formatter("%(names)s %(levelname)s %(message)r")
-        formatter = ControlLogFormatter()
-    else:
-        formatter = logging.Formatter("%(levelname)s:%(message)s")
-        console.addFilter(RegularLogFilter())
-    console.setFormatter(formatter)
+    if len(logger.handlers) == 0:
+        logger.addHandler(console)
+        logger.setLevel(logLevel)
+        if cLogFormat:
+            formatter = ControlLogFormatter()
+        else:
+            formatter = logging.Formatter("%(levelname)s:%(message)s")
+            console.addFilter(RegularLogFilter())
+        console.setFormatter(formatter)
 
 def update(args):
     repoRoot = thandy.util.userFilename("cache")
@@ -112,6 +116,8 @@ def update(args):
     downloader = thandy.download.DownloadManager()
     downloader.start()
 
+    filesDownloaded = []
+
     # XXXX We could make this loop way smarter.  Right now, it doesn't
     # back off between failures, and it doesn't notice newly downloadable files
     # until all downloading files are finished.
@@ -148,6 +154,9 @@ def update(args):
                     if p.isReady():
                         p.install()
 
+            if len(filesDownloaded) > 0 or len(installable) > 0:
+                signal(proto.UPDATER_NEW_UPDATES,
+                       content=", ".join(sorted(filesDownloaded)))
             return
 
         elif not files:
@@ -168,6 +177,7 @@ def update(args):
 
         for f in files: logCtrl("WANTFILE", FILENAME=f)
         logging.info("Files to download are: %s", ", ".join(sorted(files)))
+        filesDownloaded = files
 
         if not download:
             return
