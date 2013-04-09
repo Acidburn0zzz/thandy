@@ -154,7 +154,7 @@ def update(args):
                     if p.isReady():
                         p.install()
 
-            if len(filesDownloaded) > 0 or len(installable) > 0:
+            if len(filesDownloaded) > 0:
                 signal(proto.UPDATER_NEW_UPDATES,
                        content=", ".join(sorted(filesDownloaded)))
             return
