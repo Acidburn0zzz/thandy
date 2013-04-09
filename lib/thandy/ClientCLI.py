@@ -39,6 +39,7 @@ class RegularLogFilter:
 
 def configureLogs(options):
     logLevel = logging.INFO
+    cLogFormat = False
     for o,v in options:
         if o == '--debug':
             logLevel = logging.DEBUG
@@ -46,9 +47,21 @@ def configureLogs(options):
             logLevel = logging.INFO
         elif o == '--warn':
             logLevel = logging.WARN
+        elif o == '--controller-log-format':
+            cLogFormat = True
 
+    console = logging.StreamHandler()
+    console.setLevel(logLevel)
     logger = logging.getLogger("")
+    logger.addHandler(console)
     logger.setLevel(logLevel)
+    if cLogFormat:
+        #formatter = logging.Formatter("%(names)s %(levelname)s %(message)r")
+        formatter = ControlLogFormatter()
+    else:
+        formatter = logging.Formatter("%(levelname)s:%(message)s")
+        console.addFilter(RegularLogFilter())
+    console.setFormatter(formatter)
 
 def update(args):
     repoRoot = thandy.util.userFilename("cache")
