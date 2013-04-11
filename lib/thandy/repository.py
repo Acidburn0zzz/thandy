@@ -563,7 +563,6 @@ class LocalRepository:
                 h_expected = thandy.formats.parseHash(h)
                 hashDict[rp] = h_expected
                 if len(f) > 3:
-                    print "N"*10, f[3]
                     lengthDict[rp] = f[3]
                 fn = self.getFilename(rp)
                 try:
