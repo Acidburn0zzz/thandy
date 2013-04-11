@@ -1,0 +1,276 @@
+Title: Specification for a TBB/Thandy package format.
+Status: Draft
+Authors: nickm, erinn
+Started-On: 9 Feb 2011
+Finished-On:
+
+Introduction
+
+   On some platforms, in some environments, Thandy can use existing
+   platform-provided mechanisms for packages.  But for the Tor Browser Bundle, and
+   for Windows, we can't use built-in packaging systems (because they put data in
+   a database or registry, because they require root).  
+
+Requirements, Goals:
+
+   Thandy has these requirements for a packaging system:
+     - It needs to be able to install/upgrade packages.
+     - It needs to be able to check which version of a package is installed
+
+   For use in TBB, we we need a few more features:
+     - It needs to be able to remove packages
+     - It needs to be able to leave cofiguration files alone when upgrading
+     
+   To use this right, Thandy needs these features:
+     - download packages as-needed in the background
+     - report when packages are ready to install
+     - Have a way to upgrade the TBB as it restarts
+
+   To avoid big problems, package installation needs these features:
+     - Idempotence
+     - Validatability
+
+     - Spending as little time as possible in non-functional states.  (We can't
+       get true atomicity on some OSs, but we should get as much as reasonable
+       as we can.)
+
+Nongoals:
+
+   This is a packagesystem for TBB and similar things for use with Thandy.  It
+   is not a more general system, a replacement for rpm/deb, an all-purpose
+   software distribution mechanism, or a dessert topping.
+
+   This is not the spec for Thandy.
+   
+   This is not a spec for interfaces to Thandy. It lists some interfaces that
+   are necessary but it doesn't explain how they work.
+
+   This is not the spec for any modes of operation for thandy, interfaces to
+   thandy, or a thandy net installer.  We need specs for those, of course.
+
+   Though this document has suggestions on how to make good packages and install
+   them well, there may be additional requirements for a high-quality installer
+   not listed here.  We're trying to design this system to _support_ being the
+   most solid tool it can be, but we're not trying to figure out every possible
+   implementation detail here.
+
+Mode of operation:
+
+   While TBB is running, Vidalia should periodically launch Thandy, telling it,
+   "Fetch packages as needed" or "Tell me if you could fetch packages."
+
+   While TBB is running, Vidalia should periodically launch Thandy, asking it,
+   "Are there packages downloaded and ready to install?"  If so, it should tell
+   the user.
+
+   When TBB first starts, it should start a launcher program that asks Thandy,
+   "Are there packages downloaded and ready to install?"  If so, it should tell
+   Thandy to install them.
+
+   To make Thandy and the launcher self-upgrade, here's a two-step process: the
+   install process installs new stuff into a new directory to the side of the old
+   directory, and then launches a new "replacer" program to move the new stuff
+   over the old stuff.  The replacer, when it's done, re-launches the launcher.
+
+     "It's not pretty, and you can't dance to it." - Frank Zappa
+
+The "thandy installable" file format:
+
+   The file metaformat is a zip file, with the file extension .thp.  It has these directories:
+   content/
+   meta/
+
+   The "content" tree has the actual package contents, in a directory layout
+   mirroring the layout of the installed package.  The "meta" tree has information
+   about the package.
+
+   The meta tree has one required file, "package.json".  Its contents are a
+   single json object, with the following required fields:
+
+   'format-version'
+       The number 1.  An installer SHOULD NOT try to install a package with a
+       format-version that it doesn't recognize.
+
+   'manifest'
+       A list of files relative to the thp's content directory.  Each file is an
+       object with these fields:
+	 'name': the name of the file relative to thp's content directory
+	 'digest': optionally, a 2-tuple of a digest algorithm and a
+           hexadecimal digest value.  The following algorithms are supported: SHA256.
+          'length': optionally, the length of the file in bytes
+	 'isconfig': optionally, a boolean.  If it is present and true, this
+            file is considered "configuration".
+
+    'package-name'
+       The name of this package.  There shouldn't be two packages with the same
+       name installed at once in the same hierarchy.  Ex: "Tor".
+
+    'package-version'
+       The version of the package as a human-readable string.  This should
+       include both the version of the thing being packaged, and the version of of the
+       package itself.  Ex: "0.2.2.35-rc-7" is the seventh release of a thp file for
+       Tor 0.2.2.35-rc.
+
+    'package-version-tuple'
+       The version of the package as a list of numbers and strings such that a
+       lexical comparison of two package version tuples is a   correct version
+       comparison.  Ex: [ 0, 2, 2, 35, "rc", 7 ]
+
+    'timestamp'
+       The time when this thp was generated, as a YYYY-MM-DD HH:MM:SS string,
+       relative to UTC.  Ex: "2011-03-02 17:33:07"
+
+    'additional-files'
+       Optional: A list of files or file sets relative to the install root, to
+       decribe files that the package is responsible for, even if they're not
+       distributed with the package.  This is used to kill off temporary and cache
+       files on uninstall.  Each file is an object with these fields: 'name': The name
+       of the file relative to the install root.  This name may contain "*" and "**"
+       file-globbing patterns.  'isconfig': as for manifest.
+
+    'install-order'
+       Optional: number between 0 and 100 inclusive to indicate that this
+       package must be installed before or after others.  Defaults to "50".
+
+    'options'
+       Optional: a map from option strings to values.  Known options are:
+        'cycle-install': This package should be installed to a separate
+         install root from the currently installed package, then moved over.
+
+    'platform'
+       Optional. The OS and CPU type that this package is for.
+
+    'require-features'
+       Optional. A list of strings naming installer features that the installer
+       needs to support to install this package correctly. An installer SHOULD NOT try
+       to install the package if it does not recognize and support all members of this
+       list.  Ex: [ "pythonscripts" ]
+
+    'require-packages'
+       Optional. A list of objects for all packages that must be installed
+       before this package can be installed.  Each object has these fields:
+        'package-name'
+        'min-version-tuple'
+
+   'scripts'
+       Optional: a map from scripting language to set of scripts.  Supported
+       scripting languages are python2, sh, none.  (We can add more later.)  If the
+       'scripts' field is present, the installer SHOULD NOT install the package unless
+       it supports one or more of the scripting languages.  Each set of scripts
+       contains one or more of the following fields: 'checkinst' 'preinst' 'postinst'
+       'prerm' 'postrm' Each names a file relative to meta/scripts in the thp zip
+       file.
+
+   Implementations SHOULD NOT generate other files or subdirectories of the main
+   zip root directory; implementations MUST ignore files and subdirectories that
+   they do not recognize.
+
+The package database:
+
+   The installer keeps a directory that contains files describing the status of
+   the packages we have installed.  It has a subdirectory: "pkg-status".
+
+   "pkg-status" has, for each package, two files: packagename.json, and
+   packagename.status.  Optionally, it has a packagename.json.new file.
+
+   The packagename.json file contains a copy of the package.json file from
+   the most recent successfully installed version of the the package.  The
+   packagename.status file contains a json object containing at least the field
+   'status' set to one of the following: "INSTALLED", "IN-PROGRESS".  If a package
+   install or upgrade is in-progress, packagename.json.new has the package.json
+   file from the new version of the package.
+
+Scripts:
+
+   Each script should be callable by a language- and platform-specific calling
+   convention for invoking a script with named arguments.  The arguments to the
+   script are:
+
+       THP_PACKAGE_NAME
+       THP_OLD_VERSION (absent if we are doing a fresh installation)
+       THP_NEW_VERSION
+       THP_OLD_INSTALL_ROOT
+       THP_INSTALL_ROOT
+       THP_JSON_FILE
+       THP_VERBOSE (flag: "1" if the script should log verbosely.)
+       THP_PURGE (flag: "1" if we are doing a remove and we want to get rid of
+       absolutely everything.)
+       THP_TEMP_DIR
+
+   For sh and python2 scripts, these arguments are passed as environment variables.
+
+   Scripts need a way to signal success or failure.  For sh and python2 scripts,
+   this is done via return value.
+
+   The 'none' script type must never have any scripts.  Installers should never
+   choose it if they support any other script type: it only exists to tell the
+   installer that the scripts are optional.
+
+Directories:
+
+   All installation happens relative to a single "install root".
+   
+   Thandy maintains a cache directory of its own, containing (among other
+   things) downloaded thp files.
+   
+   The thp installer has a database directory explaining package status.
+
+Steps of operation:
+
+   Checking for and downloading packages is done by thandy, and out-of-scope
+   here, except inasmuch as Thandy needs the thp installer to say which version
+   (if any) of package X is installed.  The installer can do this by looking at
+   the X.status file and the X.json file.
+
+   To validate a package, the thp installer verifies that all files listed in
+   the manifest are in fact installed with the sizes and digests listed, unless
+   they are config files.
+
+   {THIS NEXT PART IS A DRAFT AND NEEDS MORE THOUGHT! IT COULD BE WAY MORE ATOMIC}
+
+   Installing and updating a downloaded package is done by Thandy teling the thp
+   installer, "install/update these packages" with a list of thp files. To do
+   this, the installer:
+
+      * Grabs a lockfile.
+      * Finds the current version, if any, of all of the packages.
+      * Runs the checkinst script if present for every package that might need
+        installing or updating.  If any fails, the update can't happen.
+      * For each package, sorted in topological order by 'requires'
+        relationships, with ties broken by 'install-order' fields:
+        * Overwrite the status file for the package in the database, changing
+          the status to "IN-PROGRESS". Copy the package's package.json file to
+          packagename.json.new in the database.
+        * Run the package's preinst script.  If that fails, abort.
+        * Unpack all files in the package's content fork to their target
+          locations.  If files tagged 'config' are present, ignore them.
+        * If any files are listed in the manifest for the old version of the
+          package but not for the new version, and they are not config files,
+          remove them.  (Have an option to override this?)
+        * Run the postinst script
+        * Replace the packagename.json file with the packagename.json.new file.
+        * Change the package status to "INSTALLED".
+
+    CHANGES TO MAKE TO THE INSTALL PROCESS ABOVE:
+      - Instead of overwrite-as-we-go, perhaps have overwrite as the very last step?
+      - Perhaps checkpoint all files first for easy rollback?
+      - Specify how to do the cycle-install feature.
+
+    "Is it... atomic?"
+    "Yes!  VERY atomic!"
+        -- The 5000 Fingers of Dr T
+
+
+Future directions and open questions:
+
+F.1 Configuration file updates
+
+   We need a smart way to handle configuration file updates and changes in the
+   future. There are several three-way merge tools available that we can model our
+   behavior on, or re-use the code of, such as Debian's ucf tool. 
+
+F.1 Binary patching
+   
+   There are auto-update tools (courgette for Chrome, as an example) which do
+   smart binary patching, thus often drastically reducing the download time of
+   updates. When the tool is more mature, we should look into ways to do this.
