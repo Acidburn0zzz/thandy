@@ -14,20 +14,6 @@ VERSION = '0.0.2-alpha'
 
 VERSION_INFO = (0,0,2)
 
-try:
-    import Crypto
-except ImportError:
-    print "Missing support for module Crypto"
-    sys.exit(1)
-
-try:
-    import json
-except ImportError:
-    try:
-        import simplejson
-    except ImportError:
-        print "Missing support for module simplejson"
-
 import os, re, shutil, string, struct, sys
 
 os.umask(022)
@@ -155,6 +141,7 @@ setup(name='Thandy',
       package_dir=pkg_dir,
       packages=pkgs,
       scripts=SCRIPTS,
+      install_requires=["json", "pycrypto"],
       cmdclass={'install': InstallCommand},
       **extra_args
 )
