@@ -1,6 +1,8 @@
 #!/usr/bin/python
 # Copyright 2008 The Tor Project.  See LICENSE for licensing information.
 
+from setuptools import setup, find_packages
+
 import sys
 try:
     import py2exe
@@ -137,11 +139,11 @@ setup(name='Thandy',
       "Thandy: Secure cross-platform update automation tool.",
       author="Nick Mathewson",
       author_email="nickm@freehaven.net",
-      url="http://www.torproject/org",
+      url="http://www.torproject.org",
       package_dir=pkg_dir,
       packages=pkgs,
       scripts=SCRIPTS,
-      install_requires=["json", "pycrypto"],
+      install_requires=["pycrypto"],
       cmdclass={'install': InstallCommand},
       **extra_args
 )
